@@ -1,5 +1,5 @@
 # Color Tree
-![Color Tree Preview](media\colortree-preview.png)
+![Color Tree Preview](/media/colortree-preview.png)
 
 Color an entity's children and its descendants with a familiar user interface.
 
