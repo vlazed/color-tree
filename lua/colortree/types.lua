@@ -6,8 +6,11 @@
 ---@field ProxyentPaintColor Entity
 ---@field colortree_owner Player
 
+---@class ProxyData
+---@alias ProxyField {color: Color, data: ProxyData}
+
 ---@alias MaterialProxy string
----@alias ProxyColor {[MaterialProxy]: Color}?
+---@alias ProxyColor {[MaterialProxy]: ProxyField}?
 
 ---Dupe data for color trees
 ---@class ColorTreeData
