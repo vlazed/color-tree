@@ -43,16 +43,14 @@ local function decodeData(data)
 	return util.JSONToTable(util.Decompress(data))
 end
 
----@alias dupeFunc fun(ply: Player, ent: Entity, data: any)
----@alias dataFunc fun(data: ProxyField): any
-
+---@type ProxyTransformer
 local cloakFuncs = {
-	funcs = GiveMatproxyTF2CloakEffect, ---@diagnostic disable-line
-	transform = function(color)
+	apply = GiveMatproxyTF2CloakEffect, ---@diagnostic disable-line
+	transform = function(data)
 		return {
-			TintR = color.r,
-			TintG = color.g,
-			TintB = color.b,
+			TintR = data.color.r,
+			TintG = data.color.g,
+			TintB = data.color.b,
 			Anim = 1,
 		}
 	end,
@@ -67,15 +65,15 @@ local cloakFuncs = {
 }
 
 ---Mapping of material proxies to function tables
----@type {[string]: {func: dupeFunc, transform: dataFunc, reset: dupeFunc}}
-local externalColorFuncs = {
+---@type ProxyTransformers
+local proxyTransformers = {
 	["ItemTintColor"] = {
-		func = GiveMatproxyTF2ItemPaint, ---@diagnostic disable-line
-		transform = function(data)
+		apply = GiveMatproxyTF2ItemPaint, ---@diagnostic disable-line
+		transform = function(proxy)
 			return {
-				ColorR = data.color.r,
-				ColorG = data.color.g,
-				ColorB = data.color.b,
+				ColorR = proxy.color.r,
+				ColorG = proxy.color.g,
+				ColorB = proxy.color.b,
 			}
 		end,
 		reset = function(ply, ent, data)
@@ -88,14 +86,14 @@ local externalColorFuncs = {
 		end,
 	},
 	["YellowLevel"] = {
-		func = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
-		transform = function(data)
+		apply = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
+		transform = function(proxy)
 			return {
 				JarateSparks = true,
 				JarateColorable = true,
-				ColorR = data.color.r,
-				ColorG = data.color.g,
-				ColorB = data.color.b,
+				ColorR = proxy.color.r,
+				ColorG = proxy.color.g,
+				ColorB = proxy.color.b,
 			}
 		end,
 		reset = function(ply, ent, data)
@@ -112,13 +110,13 @@ local externalColorFuncs = {
 	["weapon_invis"] = cloakFuncs,
 	["building_invis"] = cloakFuncs,
 	["ModelGlowColor"] = {
-		func = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
-		transform = function(data)
+		apply = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
+		transform = function(proxy)
 			return {
 				ColorableSparks = true,
-				ColorR = data.color.r,
-				ColorG = data.color.g,
-				ColorB = data.color.b,
+				ColorR = proxy.color.r,
+				ColorG = proxy.color.g,
+				ColorB = proxy.color.b,
 			}
 		end,
 		reset = function(ply, ent, data)
@@ -132,7 +130,7 @@ local externalColorFuncs = {
 	},
 	["PlayerColor"] = {
 		-- FIXME: Support for Stik's tools or Ragdoll Colorizer
-		func = function(ply, ent, data)
+		apply = function(ply, ent, data)
 			---@diagnostic disable-next-line
 			if isfunction(RagdollColorEntityTable) then
 				---@diagnostic disable-next-line
@@ -163,8 +161,8 @@ local externalColorFuncs = {
 				end
 			end
 		end,
-		transform = function(data)
-			return data.color
+		transform = function(proxy)
+			return proxy.color
 		end,
 		reset = function(ply, ent, data)
 			---@diagnostic disable-next-line
@@ -207,20 +205,22 @@ local function setColor(ply, ent, data)
 		ent:SetRenderMode(RENDERMODE_TRANSCOLOR)
 	end
 	if data.colortree_proxyColor then
-		for proxy, proxyData in pairs(data.colortree_proxyColor) do
+		-- If the proxy exists in the data, apply the proxy while transforming the data to a usable format
+		for proxyName, proxy in pairs(data.colortree_proxyColor) do
 			---@cast proxy MaterialProxy
-			---@cast proxyData ProxyField
-			if not proxyData.color then
+			---@cast proxy ProxyField
+			if not proxy.color then
 				continue
 			end
 
-			if externalColorFuncs[proxy] and externalColorFuncs[proxy].func then
-				externalColorFuncs[proxy].func(ply, ent, externalColorFuncs[proxy].transform(proxyData))
+			if proxyTransformers[proxyName] and proxyTransformers[proxyName].apply then
+				proxyTransformers[proxyName].apply(ply, ent, proxyTransformers[proxyName].transform(proxy))
 			end
 		end
-		for proxy, funcs in pairs(externalColorFuncs) do
-			if not data.colortree_proxyColor[proxy] and funcs.reset then
-				funcs.reset(ply, ent, data)
+		-- If the proxy doesn't exist in the data, reset the entity based on the proxy
+		for proxyName, transformer in pairs(proxyTransformers) do
+			if not data.colortree_proxyColor[proxyName] and transformer.reset then
+				transformer.reset(ply, ent, data)
 			end
 		end
 	end

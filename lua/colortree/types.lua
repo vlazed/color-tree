@@ -6,6 +6,15 @@
 ---@field ProxyentPaintColor Entity
 ---@field colortree_owner Player
 
+---@alias dupeFunc fun(ply: Player, ent: Entity, data: any)
+---@alias dataFunc fun(data: ProxyField): any
+
+---Table of functions to transform entity proxy data and apply or reset it
+---@alias ProxyTransformer {apply: dupeFunc, transform: dataFunc, reset: dupeFunc}
+
+---Mapping of material proxies to function tables that transforms data and applies proxies
+---@alias ProxyTransformers {[MaterialProxy]: ProxyTransformer}
+
 ---@class ProxyData
 ---@alias ProxyField {color: Color, data: ProxyData}
 
