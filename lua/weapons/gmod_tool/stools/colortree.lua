@@ -44,6 +44,8 @@ local function decodeData(data)
 	return util.JSONToTable(util.Decompress(data))
 end
 
+---Define a set of proxies so that the reset function doesn't erroneously call
+---if we already have one of these proxies
 local cloakProxies = {
 	spy_invis = true,
 	invis = true,
@@ -56,6 +58,7 @@ local glowProxies = {
 	ModelGlowColor = true,
 }
 
+---@type resetFunc
 local function glowReset(ply, ent, data)
 	local old = ent.ProxyentCritGlow
 	if IsValid(old) then
@@ -67,6 +70,19 @@ end
 
 ---@type ProxyTransformer
 local cloakFuncs = {
+	entity = {
+		name = "ProxyentCloakEffect",
+		varMap = {
+			color = "CloakTintVector",
+			matproxy_tf2cloakeffect_factor = "CloakFactor",
+			matproxy_tf2cloakeffect_refractamount = "CloakRefractAmount",
+			matproxy_tf2cloakeffect_disableshadow = "CloakDisablesShadow",
+			matproxy_tf2cloakeffect_anim = "CloakAnim",
+			matproxy_tf2cloakeffect_anim_toggle = "CloakAnimToggle",
+			matproxy_tf2cloakeffect_anim_timein = "CloakAnimTimeIn",
+			matproxy_tf2cloakeffect_anim_timeout = "CloakAnimTimeOut",
+		},
+	},
 	apply = GiveMatproxyTF2CloakEffect, ---@diagnostic disable-line
 	transform = function(proxy)
 		return {
@@ -97,6 +113,13 @@ local cloakFuncs = {
 ---@type ProxyTransformers
 local proxyTransformers = {
 	["ItemTintColor"] = {
+		entity = {
+			name = "ProxyentPaintColor",
+			varMap = {
+				color = "Color",
+				matproxy_tf2itempaint_override = "PaintOverride",
+			},
+		},
 		apply = GiveMatproxyTF2ItemPaint, ---@diagnostic disable-line
 		transform = function(proxy)
 			return {
@@ -116,6 +139,17 @@ local proxyTransformers = {
 		end,
 	},
 	["YellowLevel"] = {
+		entity = {
+			name = "ProxyentCritGlow",
+			varMap = {
+				color = "Color",
+				matproxy_tf2critglow_sparksr = "SparksRed",
+				matproxy_tf2critglow_sparksb = "SparksBlu",
+				matproxy_tf2critglow_sparksc = "SparksColorable",
+				matproxy_tf2critglow_sparksj = "SparksJarate",
+				matproxy_tf2critglow_sparksjc = "SparksJarateColorable",
+			},
+		},
 		apply = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
 		transform = function(proxy)
 			return {
@@ -133,6 +167,17 @@ local proxyTransformers = {
 	["weapon_invis"] = cloakFuncs,
 	["building_invis"] = cloakFuncs,
 	["ModelGlowColor"] = {
+		entity = {
+			name = "ProxyentCritGlow",
+			varMap = {
+				color = "Color",
+				matproxy_tf2critglow_sparksr = "SparksRed",
+				matproxy_tf2critglow_sparksb = "SparksBlu",
+				matproxy_tf2critglow_sparksc = "SparksColorable",
+				matproxy_tf2critglow_sparksj = "SparksJarate",
+				matproxy_tf2critglow_sparksjc = "SparksJarateColorable",
+			},
+		},
 		apply = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
 		transform = function(proxy)
 			return {
@@ -578,6 +623,9 @@ local function makeCategory(cPanel, name, type)
 end
 
 ---Construct a flat array of the entity's descendant colors
+---@param entity Entity
+---@param tbl Color[]
+---@return Color[]
 local function getColorChildrenIdentifier(entity, tbl)
 	if not IsValid(entity) then
 		return {}
@@ -593,6 +641,8 @@ local function getColorChildrenIdentifier(entity, tbl)
 end
 
 ---Check if every descendant's color is equal to some other descendant color
+---@param t1 Color[]
+---@param t2 Color[]
 local function isColorChildrenEqual(t1, t2)
 	if #t1 ~= #t2 then
 		return false
@@ -696,6 +746,70 @@ local function getProxyData(proxyDermas)
 	return data
 end
 
+---@param tree DescendantTree
+local function setColorClient(tree)
+	local entity = Entity(tree.entity)
+	if not IsValid(entity) then
+		return
+	end
+
+	entity:SetColor(tree.color)
+	entity:SetRenderMode(tree.renderMode)
+	entity:SetRenderFX(tree.renderFx)
+	if tree.color.a < 255 then
+		entity:SetRenderMode(RENDERMODE_TRANSCOLOR)
+	end
+
+	for name, transformer in pairs(proxyTransformers) do
+		if
+			tree.proxyColor
+			and tree.proxyColor[name]
+			and tree.proxyColor[name].color
+			and transformer.entity
+			and entity[transformer.entity.name]
+		then
+			local ent = entity[transformer.entity.name]
+			if IsValid(ent) then
+				for convar, var in pairs(transformer.entity.varMap) do
+					if convar == "color" then
+						local color = Color(
+							tree.proxyColor[name].color.r,
+							tree.proxyColor[name].color.g,
+							tree.proxyColor[name].color.b,
+							tree.proxyColor[name].color.a
+						)
+						ent:SetColor(color)
+						if isvector(ent.Color) then
+							local multiplier = 255
+							if math.max(ent.Color:Unpack()) <= 1 then
+								multiplier = 1
+							end
+							ent.Color = multiplier * color:ToVector()
+						end
+						if isvector(ent["Get" .. var](ent)) then
+							ent["Set" .. var](ent, color:ToVector())
+						end
+					else
+						if isfunction(ent["Set" .. var]) then
+							local isBool = isbool(ent["Get" .. var](ent))
+							local val = GetConVar(convar)
+								and Either(isBool, GetConVar(convar):GetBool(), GetConVar(convar):GetFloat())
+							ent["Set" .. var](ent, val)
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if #tree.children == 0 then
+		return
+	end
+	for _, child in ipairs(tree.children) do
+		setColorClient(child)
+	end
+end
+
 ---@param cPanel ControlPanel|DForm
 ---@param colorable Colorable
 function TOOL.BuildCPanel(cPanel, colorable)
@@ -757,6 +871,9 @@ function TOOL.BuildCPanel(cPanel, colorable)
 		syncTree(descendantTree)
 	end
 
+	---@param node ColorTreePanel_Node
+	---@param proxy MaterialProxy
+	---@param propagate boolean
 	local function setProxyData(node, proxy, propagate)
 		node.info.proxyColor = node.info.proxyColor or {}
 		node.info.proxyColor[proxy] = {
@@ -775,16 +892,28 @@ function TOOL.BuildCPanel(cPanel, colorable)
 		end
 	end
 
+	local shouldSet = false
+	local editors = {}
+
+	---Anytime the proxy entry changes, hook the new dermas. Return the dermas that have the IsEditing method, for tracking
+	---@param dermas {[string]: Panel}
+	---@param proxy MaterialProxy
+	---@return Panel[]
 	local function hookProxies(dermas, proxy)
+		local dermaEditors = {}
 		for _, derma in pairs(dermas) do
+			if derma:GetName() == "DNumSlider" then
+				table.insert(dermaEditors, derma)
+			end
 			function derma:OnValueChanged()
 				local selectedNode = treePanel:GetSelectedItem()
 				if not selectedNode or not IsValid(Entity(selectedNode.info.entity)) then
 					return
 				end
 
+				shouldSet = true
 				setProxyData(selectedNode, proxy, propagate:GetChecked())
-				syncTree(descendantTree)
+				setColorClient(descendantTree)
 			end
 
 			function derma:OnChange()
@@ -793,16 +922,19 @@ function TOOL.BuildCPanel(cPanel, colorable)
 					return
 				end
 
+				shouldSet = true
 				setProxyData(selectedNode, proxy, propagate:GetChecked())
-				syncTree(descendantTree)
+				setColorClient(descendantTree)
 			end
 		end
+		return dermaEditors
 	end
 
+	---@param newVal string
 	function proxySet:OnValueChange(newVal)
 		colorPicker:SetLabel("Color " .. newVal)
 		proxyDermas = resetProxySettings(proxySettings, newVal)
-		hookProxies(proxyDermas, newVal)
+		editors = hookProxies(proxyDermas, newVal)
 	end
 
 	hookProxies(proxyDermas, proxySet:GetText())
@@ -834,18 +966,19 @@ function TOOL.BuildCPanel(cPanel, colorable)
 	end
 
 	---@param newColor Color
-	---@diagnostic disable-next-line
 	function colorPicker.Mixer:ValueChanged(newColor)
 		local selectedNode = treePanel:GetSelectedItem()
 		if not selectedNode or not IsValid(Entity(selectedNode.info.entity)) then
 			return
 		end
 
+		shouldSet = true
+
 		setColor(selectedNode, newColor, propagate:GetChecked())
 
 		local h, s, v = ColorToHSV(newColor)
 		haloColor = HSVToColor(math.abs(h - 180), s, v)
-		syncTree(descendantTree)
+		setColorClient(descendantTree)
 	end
 
 	---@param node ColorTreePanel_Node
@@ -853,10 +986,29 @@ function TOOL.BuildCPanel(cPanel, colorable)
 		haloedEntity = Entity(node.info.entity)
 	end
 
-	-- TODO: During sync, update entity's appearance live in client, but send results
-	-- on a longer tick or if done editing a slider or color combo
+	---@param editors Panel[]|DNumSlider[]
+	---@return boolean
+	local function checkEditing(editors)
+		for _, editor in ipairs(editors) do
+			if editor:IsEditing() then
+				return true
+			end
+		end
+		return false
+	end
+
+	local lastThink = CurTime()
 	local lastColor = {}
+	timer.Remove("colortree_think")
 	timer.Create("colortree_think", 0, -1, function()
+		local now = CurTime()
+		local editing = colorPicker.Mixer.HSV:IsEditing() or checkEditing(editors)
+		if now - lastThink > 0.1 and shouldSet and not editing then
+			syncTree(descendantTree)
+			lastThink = now
+			shouldSet = false
+		end
+
 		if lock:GetChecked() then
 			return
 		end
@@ -868,6 +1020,7 @@ function TOOL.BuildCPanel(cPanel, colorable)
 			lastColor = currentColor
 		end
 	end)
+	timer.Start("colortree_think")
 end
 
 hook.Add("PreDrawHalos", "colortree_halos", function()

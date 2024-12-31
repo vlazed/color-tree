@@ -42,8 +42,8 @@
 ---@field route integer[]?
 ---@field entity integer
 ---@field color Color
----@field renderMode number|RENDERMODE
----@field renderFx number|kRenderFx
+---@field renderMode number
+---@field renderFx number
 ---@field proxyColor ProxyColor?
 ---@field children DescendantTree[]
 
@@ -58,6 +58,11 @@
 ---@field ancestor ColorTreePanel_Node
 ---@field GetSelectedItem fun(self: ColorTreePanel): ColorTreePanel_Node
 
+---Wrapper for `DColorMixer`
+---@class ColorTreeMixer: DColorMixer
+---@field HSV DSlider
+
 ---Wrapper for `CtrlColor`
 ---@class ColorTreePicker: Panel
 ---@field SetLabel fun(self: ColorTreePicker, label: string)
+---@field Mixer ColorTreeMixer
