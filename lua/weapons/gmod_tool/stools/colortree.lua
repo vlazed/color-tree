@@ -113,7 +113,7 @@ if SERVER then
 	end
 
 	---Transform an entity's color tree into data saved for duping
-	---@param node DescendantTree
+	---@param node ColorTree
 	---@returns ColorTreeData
 	local function getColorTreeData(node)
 		return {
@@ -125,13 +125,13 @@ if SERVER then
 	end
 
 	---Recursively call `setColor` on the tree's descendants
-	---@param descendantTree DescendantTree
-	local function setColorWithTree(descendantTree, ply)
-		if not descendantTree.children or #descendantTree.children == 0 then
+	---@param colorTree ColorTree
+	local function setColorWithTree(colorTree, ply)
+		if not colorTree.children or #colorTree.children == 0 then
 			return
 		end
 
-		for _, node in ipairs(descendantTree.children) do
+		for _, node in ipairs(colorTree.children) do
 			setColor(ply, Entity(node.entity), getColorTreeData(node))
 			if node.children and #node.children > 0 then
 				setColorWithTree(node.children)
@@ -156,7 +156,7 @@ end
 ---@module "colortree.client.colorui"
 local ui = include("colortree/client/colorui.lua")
 
----@type PanelState
+---@type ColorPanelState
 local panelState = {
 	haloedEntity = NULL,
 	haloColor = color_white,
