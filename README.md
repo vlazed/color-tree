@@ -5,5 +5,6 @@ Color an entity's children and its descendants with a familiar user interface.
 
 This attempts to support addons that manipulate material proxies, such as
 - Hat Painter & Crit Glow Tools
+- Cloak Effect Tool
 - Ragdoll Colorizer
 - Stik's Tools Ragdoll Color
