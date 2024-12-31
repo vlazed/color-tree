@@ -16,7 +16,7 @@ end
 
 ---Update the entity's appearance in the client.
 ---This happens every tick on the client as opposed to the server, to optimize on the outgoing net rate.
----@param tree DescendantTree
+---@param tree ColorTree
 local function setColorClient(tree)
 	local entity = Entity(tree.entity)
 	if not IsValid(entity) then
@@ -130,7 +130,7 @@ local function getModelNodeIconPath(ent)
 end
 
 ---Reset the colors of a (sub)tree
----@param tree DescendantTree
+---@param tree ColorTree
 local function resetTree(tree)
 	tree.color = color_white
 	tree.proxyColor = {}
@@ -144,7 +144,7 @@ local function resetTree(tree)
 end
 
 ---Send the entity color tree to the server for coloring
----@param tree DescendantTree
+---@param tree ColorTree
 local function syncTree(tree)
 	local data = encodeData(tree)
 	net.Start("colortree_sync", true)
@@ -154,7 +154,7 @@ local function syncTree(tree)
 end
 
 ---Get changes to the entity's color tree from an external source
----@param tree DescendantTree
+---@param tree ColorTree
 local function refreshTree(tree)
 	local entity = tree.entity and Entity(tree.entity) or NULL
 	tree.color = IsValid(entity) and entity:GetColor() or color_white
@@ -170,8 +170,8 @@ end
 ---Add hooks and color tree pointers
 ---@param parent ColorTreePanel_Node
 ---@param entity Colorable|Entity
----@param info DescendantTree
----@param rootInfo DescendantTree
+---@param info ColorTree
+---@param rootInfo ColorTree
 ---@return ColorTreePanel_Node
 local function addNode(parent, entity, info, rootInfo)
 	local node = parent:AddNode(getModelNameNice(entity))
@@ -217,7 +217,7 @@ end
 
 ---Construct the color tree
 ---@param parent Entity
----@return DescendantTree
+---@return ColorTree
 local function entityHierarchy(parent, route)
 	local tree = {}
 	if not IsValid(parent) then
@@ -347,9 +347,9 @@ local function getProxyData(proxyDermas)
 end
 
 ---Construct the DTree from the entity color tree
----@param tree DescendantTree
+---@param tree ColorTree
 ---@param nodeParent ColorTreePanel_Node
----@param root DescendantTree
+---@param root ColorTree
 local function hierarchyPanel(tree, nodeParent, root)
 	for _, child in ipairs(tree) do
 		local childEntity = Entity(child.entity)
@@ -368,12 +368,12 @@ end
 ---Construct the `entity`'s color tree
 ---@param treePanel ColorTreePanel
 ---@param entity Colorable|Entity
----@returns DescendantTree
+---@returns ColorTree
 local function buildTree(treePanel, entity)
 	if IsValid(treePanel.ancestor) then
 		treePanel.ancestor:Remove()
 	end
-	---@type DescendantTree
+	---@type ColorTree
 	local hierarchy = {
 		entity = entity:EntIndex(),
 		color = entity:GetColor(),
@@ -393,8 +393,8 @@ local function buildTree(treePanel, entity)
 end
 
 ---@param cPanel DForm|ControlPanel
----@param panelProps PanelProps
----@param panelState PanelState
+---@param panelProps ColorPanelProps
+---@param panelState ColorPanelState
 ---@return table
 function ui.ConstructPanel(cPanel, panelProps, panelState)
 	local colorable = panelProps.colorable
@@ -404,10 +404,10 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	local treePanel = vgui.Create("DTree", treeForm)
 	---@cast treePanel ColorTreePanel
 	if IsValid(colorable) then
-		panelState.descendantTree = buildTree(treePanel, colorable)
+		panelState.colorTree = buildTree(treePanel, colorable)
 	else
 		panelState.haloedEntity = NULL
-		panelState.descendantTree = {} ---@diagnostic disable-line
+		panelState.colorTree = {} ---@diagnostic disable-line
 	end
 	treeForm:AddItem(treePanel)
 	treePanel:Dock(TOP)
@@ -467,9 +467,9 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	}
 end
 
----@param panelChildren PanelChildren
----@param panelProps PanelProps
----@param panelState PanelState
+---@param panelChildren ColorPanelChildren
+---@param panelProps ColorPanelProps
+---@param panelState ColorPanelState
 function ui.HookPanel(panelChildren, panelProps, panelState)
 	local colorable = panelProps.colorable
 
@@ -485,8 +485,8 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local reset = panelChildren.reset
 
 	function reset:DoClick()
-		resetTree(panelState.descendantTree)
-		syncTree(panelState.descendantTree)
+		resetTree(panelState.colorTree)
+		syncTree(panelState.colorTree)
 	end
 
 	---@param node ColorTreePanel_Node
@@ -513,6 +513,22 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local shouldSet = false
 	local dermaEditors = {}
 
+	function renderMode:OnSelect(_, _, val)
+		local selectedNode = treePanel:GetSelectedItem()
+		if IsValid(selectedNode) then
+			selectedNode.info.renderMode = val
+			shouldSet = true
+		end
+	end
+
+	function renderFx:OnSelect(_, _, val)
+		local selectedNode = treePanel:GetSelectedItem()
+		if IsValid(selectedNode) then
+			selectedNode.info.renderFx = val
+			shouldSet = true
+		end
+	end
+
 	---Anytime the proxy entry changes, hook the new dermas. Return the dermas that have the IsEditing method, for tracking
 	---@param dermas {[string]: Panel}
 	---@param proxy MaterialProxy
@@ -531,7 +547,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 				shouldSet = true
 				setProxyData(selectedNode, proxy, propagate:GetChecked())
-				setColorClient(panelState.descendantTree)
+				setColorClient(panelState.colorTree)
 			end
 
 			function derma:OnChange()
@@ -542,7 +558,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 				shouldSet = true
 				setProxyData(selectedNode, proxy, propagate:GetChecked())
-				setColorClient(panelState.descendantTree)
+				setColorClient(panelState.colorTree)
 			end
 		end
 		return editors
@@ -597,7 +613,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 		local h, s, v = ColorToHSV(newColor)
 		panelState.haloColor = HSVToColor(math.abs(h - 180), s, v)
-		setColorClient(panelState.descendantTree)
+		setColorClient(panelState.colorTree)
 	end
 
 	---@param node ColorTreePanel_Node
@@ -624,7 +640,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		local now = CurTime()
 		local editing = colorPicker.Mixer.HSV:IsEditing() or checkEditing(dermaEditors)
 		if now - lastThink > 0.1 and shouldSet and not editing then
-			syncTree(panelState.descendantTree)
+			syncTree(panelState.colorTree)
 			lastThink = now
 			shouldSet = false
 		end
@@ -638,7 +654,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		local currentColor = getColorChildrenIdentifier(colorable, {})
 
 		if not isColorChildrenEqual(lastColor, currentColor) then
-			refreshTree(panelState.descendantTree)
+			refreshTree(panelState.colorTree)
 			lastColor = currentColor
 		end
 	end)

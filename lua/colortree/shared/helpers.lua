@@ -16,7 +16,13 @@ local MODEL_FILTER = {
 function helpers.getValidModelChildren(entity)
 	local filteredChildren = {}
 	for i, child in ipairs(entity:GetChildren()) do
-		if child.GetModel and not MODEL_FILTER[child:GetModel()] and not ENTITY_FILTER[child:GetClass()] then
+		if
+			child.GetModel
+			and child:GetModel()
+			and not IsUselessModel(child:GetModel())
+			and not MODEL_FILTER[child:GetModel()]
+			and not ENTITY_FILTER[child:GetClass()]
+		then
 			table.insert(filteredChildren, child)
 		end
 	end
