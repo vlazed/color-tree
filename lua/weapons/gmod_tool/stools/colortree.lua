@@ -853,6 +853,8 @@ function TOOL.BuildCPanel(cPanel, colorable)
 		haloedEntity = Entity(node.info.entity)
 	end
 
+	-- TODO: During sync, update entity's appearance live in client, but send results
+	-- on a longer tick or if done editing a slider or color combo
 	local lastColor = {}
 	timer.Create("colortree_think", 0, -1, function()
 		if lock:GetChecked() then
