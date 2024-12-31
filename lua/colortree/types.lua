@@ -1,17 +1,18 @@
 ---@meta
 
----An entity that has a color method and fields from other addons
----@class Colorable: Entity
----@field ProxyentCritGlow Entity
----@field ProxyentPaintColor Entity
----@field colortree_owner Player
+---@generic T
+---@alias Set<T> {[T]: true}
 
----@alias dupeFunc fun(ply: Player, ent: Entity, data: any)
----@alias resetFunc fun(ply: Player, ent: Entity, data: any, proxyName: string)
----@alias dataFunc fun(data: ProxyField): any
+---@alias MaterialProxy string
+---@alias ConVarName string
+---@alias DermaClass string
+
+---@alias DataApplier fun(ply: Player, ent: Entity, data: any)
+---@alias DataResetter fun(ply: Player, ent: Entity, data: any)
+---@alias DataTransformer fun(data: ProxyField): any
 
 ---Table of functions to transform entity proxy data and apply or reset it
----@alias ProxyTransformer {apply: dupeFunc, transform: dataFunc, reset: resetFunc}
+---@alias ProxyTransformer {apply: DataApplier, transform: DataTransformer, reset: DataResetter}
 
 ---Mapping of material proxies to function tables that transforms data and applies proxies
 ---@alias ProxyTransformers {[MaterialProxy]: ProxyTransformer}
@@ -20,14 +21,19 @@
 
 ---@alias ProxyField {color: Color, data: ProxyData}
 
----@alias MaterialProxy string
 ---@alias ProxyColor {[MaterialProxy]: ProxyField}?
 
----@alias ConVarName string
----@alias DermaClass string
-
+---The convar associated with the proxy with the suggested derma for controlling it
 ---@alias ProxyConVar {[1]: ConVarName, [2]: DermaClass}
+
+---A mapping from the proxy name to an array of the convars and dermas for controlling it
 ---@alias ProxyConVarMap {[MaterialProxy]: table<ProxyConVar>}
+
+---An entity that has a color method and fields from other addons
+---@class Colorable: Entity
+---@field ProxyentCritGlow Entity
+---@field ProxyentPaintColor Entity
+---@field colortree_owner Player
 
 ---Dupe data for color trees
 ---@class ColorTreeData
@@ -46,6 +52,33 @@
 ---@field renderFx number
 ---@field proxyColor ProxyColor?
 ---@field children DescendantTree[]
+
+---UI
+
+---@alias ProxyDermas {[MaterialProxy]: Panel}
+
+---Main control panel UI
+---@class PanelChildren
+---@field treePanel ColorTreePanel
+---@field colorPicker ColorTreePicker
+---@field renderMode DComboBox
+---@field renderFx DComboBox
+---@field proxySettings DForm
+---@field proxySet DTextEntry
+---@field proxyDermas ProxyDermas
+---@field lock DCheckBoxLabel
+---@field propagate DCheckBoxLabel
+---@field reset DCheckBoxLabel
+
+---Immutable properties of the panel
+---@class PanelProps
+---@field colorable Colorable|Entity
+
+---Mutable properties of the panel
+---@class PanelState
+---@field haloedEntity Entity
+---@field haloColor Color
+---@field descendantTree DescendantTree?
 
 ---Wrapper for `DTree_Node`
 ---@class ColorTreePanel_Node: DTree_Node
