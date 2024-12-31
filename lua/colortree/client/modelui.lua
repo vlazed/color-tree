@@ -299,7 +299,8 @@ end
 
 local PANEL_FILTER = {
 	DCategoryHeader = true,
-	DSizeToContents = true,
+	DLabel = true,
+	DTextEntry = true,
 }
 
 ---@param cPanel DForm|ControlPanel
@@ -368,25 +369,35 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	---@returns Panel[]
 	local function resetModelSettings(category, tree)
 		for _, panel in ipairs(category:GetChildren()) do
-			if IsValid(panel) and not PANEL_FILTER[panel:GetName()] then
+			if IsValid(panel) then
+				if PANEL_FILTER[panel:GetName()] then
+					continue
+				end
+
+				if panel:GetName() == "DSizeToContents" and PANEL_FILTER[panel:GetChildren()[1]:GetName()] then
+					continue
+				end
+
 				panel:Remove()
 			end
 		end
 
 		local entity = Entity(tree.entity)
-		local dermaEditors = {}
+		local editors = {}
 		local skins = entity:SkinCount()
-		local skinSlider = category:NumSlider("Skin", "", 0, skins - 1, 0)
-		---@cast skinSlider DNumSlider
-		skinSlider:SetValue(tree.skin)
-		function skinSlider:OnValueChanged(newVal)
-			newVal = math.modf(newVal)
+		if skins > 1 then
+			local skinSlider = category:NumSlider("Skin", "", 0, skins - 1, 0)
+			---@cast skinSlider DNumSlider
+			skinSlider:SetValue(tree.skin)
+			function skinSlider:OnValueChanged(newVal)
+				newVal = math.modf(newVal)
 
-			tree.skin = newVal
-			shouldSet = true
-			setModelClient(tree)
+				tree.skin = newVal
+				shouldSet = true
+				setModelClient(tree)
+			end
+			table.insert(editors, skinSlider)
 		end
-		table.insert(dermaEditors, skinSlider)
 
 		for i = 2, #tree.bodygroupData do
 			local bodygroupData = tree.bodygroupData[i]
@@ -401,10 +412,10 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 				tree.bodygroups = string.SetChar(tree.bodygroups, bodygroupData.id + 1, tostring(newVal))
 				setModelClient(tree)
 			end
-			table.insert(dermaEditors, bodygroupSlider)
+			table.insert(editors, bodygroupSlider)
 		end
 
-		return dermaEditors
+		return editors
 	end
 
 	---@param node ColorTreePanel_Node
