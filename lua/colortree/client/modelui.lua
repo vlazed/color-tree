@@ -82,20 +82,34 @@ local function getModelName(entity)
 	return mdl
 end
 
+local skins = {}
+
 ---Grab the entity's model icon
 ---@source https://github.com/NO-LOAFING/AdvBonemerge/blob/371b790d00d9bcbb62845ce8785fc6b98fbe8ef4/lua/weapons/gmod_tool/stools/advbonemerge.lua#L1079
 ---@param ent Entity
+---@param model Model?
+---@param skin Skin?
 ---@return string iconPath
-local function getModelNodeIconPath(ent)
-	local skinid = ent:GetSkin() or 0
-	local modelicon = "spawnicons/" .. string.StripExtension(ent:GetModel()) .. ".png"
-	if skinid > 0 then
-		modelicon = "spawnicons/" .. string.StripExtension(ent:GetModel()) .. "_skin" .. skinid .. ".png"
+local function getModelNodeIconPath(ent, model, skin)
+	skin = skin or ent:GetSkin() or 0
+	model = model or ent:GetModel()
+
+	if skins[model .. skin] then
+		return skins[model .. skin]
+	end
+
+	local modelicon = "spawnicons/" .. string.StripExtension(model) .. ".png"
+	local fallback = file.Exists("materials/" .. modelicon, "GAME") and modelicon or "icon16/bricks.png"
+	if skin > 0 then
+		modelicon = "spawnicons/" .. string.StripExtension(model) .. "_skin" .. skin .. ".png"
 	end
 
 	if not file.Exists("materials/" .. modelicon, "GAME") then
-		modelicon = "icon16/bricks.png"
+		modelicon = fallback
+	else
+		skins[model .. skin] = modelicon
 	end
+
 	return modelicon
 end
 
@@ -358,6 +372,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 	local treePanel = panelChildren.treePanel
 	local modelForm = panelChildren.modelForm
+	local modelEntry = panelChildren.modelEntry
 	local lock = panelChildren.lock
 
 	local dermaEditors = {}
@@ -390,10 +405,14 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			---@cast skinSlider DNumSlider
 			skinSlider:SetValue(tree.skin)
 			function skinSlider:OnValueChanged(newVal)
+				local node = treePanel:GetSelectedItem()
 				newVal = math.modf(newVal)
 
 				tree.skin = newVal
 				shouldSet = true
+
+				local entity = Entity(node.info.entity)
+				node.Icon:SetImage(getModelNodeIconPath(entity, entity:GetModel(), newVal))
 				setModelClient(tree)
 			end
 			table.insert(editors, skinSlider)
@@ -418,6 +437,12 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		return editors
 	end
 
+	function modelEntry:OnValueChange(newVal)
+		dermaEditors = resetModelSettings(modelForm, newVal)
+		local node = treePanel:GetSelectedItem()
+		node.Icon:SetImage(getModelNodeIconPath(Entity(node.info.entity), newVal, 0))
+	end
+
 	---@param node ColorTreePanel_Node
 	function treePanel:OnNodeSelected(node)
 		panelState.haloedEntity = Entity(node.info.entity)
@@ -437,7 +462,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	end
 
 	local lastThink = CurTime()
-	local lastModel = {}
+	local lastModelChildren = {}
 	timer.Remove("modeltree_think")
 	timer.Create("modeltree_think", 0, -1, function()
 		local now = CurTime()
@@ -454,11 +479,11 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			return
 		end
 
-		local currentModel = getModelChildrenIdentifier(modelEntity, {})
+		local currentModelChildren = getModelChildrenIdentifier(modelEntity, {})
 
-		if not isModelChildrenEqual(lastModel, currentModel) then
+		if not isModelChildrenEqual(lastModelChildren, currentModelChildren) then
 			refreshTree(panelState.modelTree)
-			lastModel = currentModel
+			lastModelChildren = currentModelChildren
 		end
 	end)
 	timer.Start("modeltree_think")
