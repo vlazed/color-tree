@@ -6,8 +6,28 @@
 ---@field ProxyentPaintColor Entity
 ---@field colortree_owner Player
 
+---@alias dupeFunc fun(ply: Player, ent: Entity, data: any)
+---@alias resetFunc fun(ply: Player, ent: Entity, data: any, proxyName: string)
+---@alias dataFunc fun(data: ProxyField): any
+
+---Table of functions to transform entity proxy data and apply or reset it
+---@alias ProxyTransformer {apply: dupeFunc, transform: dataFunc, reset: resetFunc}
+
+---Mapping of material proxies to function tables that transforms data and applies proxies
+---@alias ProxyTransformers {[MaterialProxy]: ProxyTransformer}
+
+---@alias ProxyData {[ConVarName]: number|boolean}
+
+---@alias ProxyField {color: Color, data: ProxyData}
+
 ---@alias MaterialProxy string
----@alias ProxyColor {[MaterialProxy]: Color}?
+---@alias ProxyColor {[MaterialProxy]: ProxyField}?
+
+---@alias ConVarName string
+---@alias DermaClass string
+
+---@alias ProxyConVar {[1]: ConVarName, [2]: DermaClass}
+---@alias ProxyConVarMap {[MaterialProxy]: table<ProxyConVar>}
 
 ---Dupe data for color trees
 ---@class ColorTreeData
@@ -22,8 +42,8 @@
 ---@field route integer[]?
 ---@field entity integer
 ---@field color Color
----@field renderMode number|RENDERMODE
----@field renderFx number|kRenderFx
+---@field renderMode number
+---@field renderFx number
 ---@field proxyColor ProxyColor?
 ---@field children DescendantTree[]
 
@@ -38,6 +58,11 @@
 ---@field ancestor ColorTreePanel_Node
 ---@field GetSelectedItem fun(self: ColorTreePanel): ColorTreePanel_Node
 
+---Wrapper for `DColorMixer`
+---@class ColorTreeMixer: DColorMixer
+---@field HSV DSlider
+
 ---Wrapper for `CtrlColor`
 ---@class ColorTreePicker: Panel
 ---@field SetLabel fun(self: ColorTreePicker, label: string)
+---@field Mixer ColorTreeMixer

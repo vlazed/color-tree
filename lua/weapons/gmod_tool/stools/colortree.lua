@@ -12,6 +12,7 @@ local DEFAULT_PLAYER_COLOR = Vector(62 / 255, 88 / 255, 106 / 255)
 local ENTITY_FILTER = {
 	proxyent_tf2itempaint = true,
 	proxyent_tf2critglow = true,
+	proxyent_tf2cloakeffect = true,
 }
 
 local MODEL_FILTER = {
@@ -43,19 +44,89 @@ local function decodeData(data)
 	return util.JSONToTable(util.Decompress(data))
 end
 
----@alias dupeFunc fun(ply: Player, ent: Entity, data: any)
----@alias dataFunc fun(data: any): any
+---Define a set of proxies so that the reset function doesn't erroneously call
+---if we already have one of these proxies
+local cloakProxies = {
+	spy_invis = true,
+	invis = true,
+	building_invis = true,
+	weapon_invis = true,
+}
+
+local glowProxies = {
+	YellowLevel = true,
+	ModelGlowColor = true,
+}
+
+---@type resetFunc
+local function glowReset(ply, ent, data)
+	local old = ent.ProxyentCritGlow
+	if IsValid(old) then
+		old:Remove()
+		ent.ProxyentCritGlow = nil
+	end
+	duplicator.ClearEntityModifier(ent, "MatproxyTF2CritGlow")
+end
+
+---@type ProxyTransformer
+local cloakFuncs = {
+	entity = {
+		name = "ProxyentCloakEffect",
+		varMap = {
+			color = "CloakTintVector",
+			matproxy_tf2cloakeffect_factor = "CloakFactor",
+			matproxy_tf2cloakeffect_refractamount = "CloakRefractAmount",
+			matproxy_tf2cloakeffect_disableshadow = "CloakDisablesShadow",
+			matproxy_tf2cloakeffect_anim = "CloakAnim",
+			matproxy_tf2cloakeffect_anim_toggle = "CloakAnimToggle",
+			matproxy_tf2cloakeffect_anim_timein = "CloakAnimTimeIn",
+			matproxy_tf2cloakeffect_anim_timeout = "CloakAnimTimeOut",
+		},
+	},
+	apply = GiveMatproxyTF2CloakEffect, ---@diagnostic disable-line
+	transform = function(proxy)
+		return {
+			TintR = proxy.color.r,
+			TintG = proxy.color.g,
+			TintB = proxy.color.b,
+			Anim = proxy.data.matproxy_tf2cloakeffect_anim,
+			Anim_Toggle = proxy.data.matproxy_tf2cloakeffect_anim_toggle,
+			Anim_StartOn = proxy.data.matproxy_tf2cloakeffect_anim_starton,
+			Anim_TimeIn = proxy.data.matproxy_tf2cloakeffect_anim_timein,
+			Anim_TimeOut = proxy.data.matproxy_tf2cloakeffect_anim_timeout,
+			Factor = proxy.data.matproxy_tf2cloakeffect_factor,
+			RefractAmount = proxy.data.matproxy_tf2cloakeffect_refractamount,
+			DisableShadow = proxy.data.matproxy_tf2cloakeffect_disableshadow,
+		}
+	end,
+	reset = function(ply, ent, data)
+		local old = ent.ProxyentCloakEffect
+		if IsValid(old) then
+			old:Remove()
+			ent.ProxyentCloakEffect = nil
+		end
+		duplicator.ClearEntityModifier(ent, "MatproxyTF2CloakEffect")
+	end,
+}
 
 ---Mapping of material proxies to function tables
----@type {[string]: {func: dupeFunc, transform: dataFunc, reset: dupeFunc}}
-local externalColorFuncs = {
+---@type ProxyTransformers
+local proxyTransformers = {
 	["ItemTintColor"] = {
-		func = GiveMatproxyTF2ItemPaint, ---@diagnostic disable-line
-		transform = function(color)
+		entity = {
+			name = "ProxyentPaintColor",
+			varMap = {
+				color = "Color",
+				matproxy_tf2itempaint_override = "PaintOverride",
+			},
+		},
+		apply = GiveMatproxyTF2ItemPaint, ---@diagnostic disable-line
+		transform = function(proxy)
 			return {
-				ColorR = color.r,
-				ColorG = color.g,
-				ColorB = color.b,
+				ColorR = proxy.color.r,
+				ColorG = proxy.color.g,
+				ColorB = proxy.color.b,
+				PaintOverride = proxy.data.matproxy_tf2itempaint_override,
 			}
 		end,
 		reset = function(ply, ent, data)
@@ -68,47 +139,61 @@ local externalColorFuncs = {
 		end,
 	},
 	["YellowLevel"] = {
-		func = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
-		transform = function(color)
+		entity = {
+			name = "ProxyentCritGlow",
+			varMap = {
+				color = "Color",
+				matproxy_tf2critglow_sparksr = "SparksRed",
+				matproxy_tf2critglow_sparksb = "SparksBlu",
+				matproxy_tf2critglow_sparksc = "SparksColorable",
+				matproxy_tf2critglow_sparksj = "SparksJarate",
+				matproxy_tf2critglow_sparksjc = "SparksJarateColorable",
+			},
+		},
+		apply = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
+		transform = function(proxy)
 			return {
-				JarateSparks = true,
-				JarateColorable = true,
-				ColorR = color.r,
-				ColorG = color.g,
-				ColorB = color.b,
+				JarateSparks = proxy.data.matproxy_tf2critglow_sparksj,
+				JarateColorable = proxy.data.matproxy_tf2critglow_sparksjc,
+				ColorR = proxy.color.r,
+				ColorG = proxy.color.g,
+				ColorB = proxy.color.b,
 			}
 		end,
-		reset = function(ply, ent, data)
-			local old = ent.ProxyentCritGlow
-			if IsValid(old) then
-				old:Remove()
-				ent.ProxyentCritGlow = nil
-			end
-			duplicator.ClearEntityModifier(ent, "MatproxyTF2CritGlow")
-		end,
+		reset = glowReset,
 	},
+	["spy_invis"] = cloakFuncs,
+	["invis"] = cloakFuncs,
+	["weapon_invis"] = cloakFuncs,
+	["building_invis"] = cloakFuncs,
 	["ModelGlowColor"] = {
-		func = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
-		transform = function(color)
+		entity = {
+			name = "ProxyentCritGlow",
+			varMap = {
+				color = "Color",
+				matproxy_tf2critglow_sparksr = "SparksRed",
+				matproxy_tf2critglow_sparksb = "SparksBlu",
+				matproxy_tf2critglow_sparksc = "SparksColorable",
+				matproxy_tf2critglow_sparksj = "SparksJarate",
+				matproxy_tf2critglow_sparksjc = "SparksJarateColorable",
+			},
+		},
+		apply = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
+		transform = function(proxy)
 			return {
-				ColorableSparks = true,
-				ColorR = color.r,
-				ColorG = color.g,
-				ColorB = color.b,
+				RedSparks = proxy.data.matproxy_tf2critglow_sparksr,
+				BluSparks = proxy.data.matproxy_tf2critglow_sparksb,
+				ColorableSparks = proxy.data.matproxy_tf2critglow_sparksc or 0,
+				ColorR = proxy.color.r,
+				ColorG = proxy.color.g,
+				ColorB = proxy.color.b,
 			}
 		end,
-		reset = function(ply, ent, data)
-			local old = ent.ProxyentCritGlow
-			if IsValid(old) then
-				old:Remove()
-				ent.ProxyentCritGlow = nil
-			end
-			duplicator.ClearEntityModifier(ent, "MatproxyTF2CritGlow")
-		end,
+		reset = glowReset,
 	},
 	["PlayerColor"] = {
 		-- FIXME: Support for Stik's tools or Ragdoll Colorizer
-		func = function(ply, ent, data)
+		apply = function(ply, ent, data)
 			---@diagnostic disable-next-line
 			if isfunction(RagdollColorEntityTable) then
 				---@diagnostic disable-next-line
@@ -139,8 +224,8 @@ local externalColorFuncs = {
 				end
 			end
 		end,
-		transform = function(color)
-			return color
+		transform = function(proxy)
+			return proxy.color
 		end,
 		reset = function(ply, ent, data)
 			---@diagnostic disable-next-line
@@ -167,7 +252,7 @@ local externalColorFuncs = {
 	},
 }
 
----Set the colors of the entity by default or through material proxy
+---Set the colors of the entity by default or throuregh material proxy
 ---@param ply Player
 ---@param ent Colorable|Entity
 ---@param data ColorTreeData
@@ -182,14 +267,40 @@ local function setColor(ply, ent, data)
 		ent:SetRenderMode(RENDERMODE_TRANSCOLOR)
 	end
 	if data.colortree_proxyColor then
-		for proxy, color in pairs(data.colortree_proxyColor) do
-			if externalColorFuncs[proxy] and externalColorFuncs[proxy].func then
-				externalColorFuncs[proxy].func(ply, ent, externalColorFuncs[proxy].transform(color))
+		local hasCloak = false
+		local hasGlow = false
+		-- If the proxy exists in the data, apply the proxy while transforming the data to a usable format
+		for proxyName, proxy in pairs(data.colortree_proxyColor) do
+			---@cast proxy MaterialProxy
+			---@cast proxy ProxyField
+			if not proxy.color then
+				continue
+			end
+
+			if cloakProxies[proxyName] then
+				hasCloak = true
+			end
+			if glowProxies[proxyName] then
+				hasGlow = true
+			end
+
+			local transformer = proxyTransformers[proxyName]
+			if transformer and transformer.apply then
+				transformer.apply(ply, ent, transformer.transform(proxy))
 			end
 		end
-		for proxy, funcs in pairs(externalColorFuncs) do
-			if not data.colortree_proxyColor[proxy] and funcs.reset then
-				funcs.reset(ply, ent, data)
+
+		-- If the proxy doesn't exist in the data, reset the entity based on the proxy
+		for proxyName, transformer in pairs(proxyTransformers) do
+			if cloakProxies[proxyName] and hasCloak then
+				continue
+			end
+			if glowProxies[proxyName] and hasGlow then
+				continue
+			end
+
+			if not data.colortree_proxyColor[proxyName] and transformer.reset then
+				transformer.reset(ply, ent, data, proxyName)
 			end
 		end
 	end
@@ -512,6 +623,9 @@ local function makeCategory(cPanel, name, type)
 end
 
 ---Construct a flat array of the entity's descendant colors
+---@param entity Entity
+---@param tbl Color[]
+---@return Color[]
 local function getColorChildrenIdentifier(entity, tbl)
 	if not IsValid(entity) then
 		return {}
@@ -527,6 +641,8 @@ local function getColorChildrenIdentifier(entity, tbl)
 end
 
 ---Check if every descendant's color is equal to some other descendant color
+---@param t1 Color[]
+---@param t2 Color[]
 local function isColorChildrenEqual(t1, t2)
 	if #t1 ~= #t2 then
 		return false
@@ -543,6 +659,156 @@ end
 
 local haloedEntity = NULL
 local haloColor = color_white
+
+local cloakConVars = {
+	{ "matproxy_tf2cloakeffect_anim", "DCheckBoxLabel" },
+	{ "matproxy_tf2cloakeffect_anim_starton", "DCheckBoxLabel" },
+	{ "matproxy_tf2cloakeffect_anim_timein", "DNumSlider" },
+	{ "matproxy_tf2cloakeffect_anim_timeout", "DNumSlider" },
+	{ "matproxy_tf2cloakeffect_anim_toggle", "DCheckBoxLabel" },
+	{ "matproxy_tf2cloakeffect_disableshadow", "DCheckBoxLabel" },
+	{ "matproxy_tf2cloakeffect_factor", "DNumSlider" },
+	{ "matproxy_tf2cloakeffect_refractamount", "DNumSlider" },
+}
+
+---@type ProxyConVarMap
+local proxyConVarMap = {
+	PlayerColor = {},
+	ItemTintColor = {
+		{ "matproxy_tf2itempaint_override", "DCheckBoxLabel" },
+	},
+	ModelGlowColor = {
+		{ "matproxy_tf2critglow_sparksr", "DCheckBoxLabel" },
+		{ "matproxy_tf2critglow_sparksb", "DCheckBoxLabel" },
+		{ "matproxy_tf2critglow_sparksc", "DCheckBoxLabel" },
+	},
+	YellowLevel = {
+		{ "matproxy_tf2critglow_sparksj", "DCheckBoxLabel" },
+		{ "matproxy_tf2critglow_sparksjc", "DCheckBoxLabel" },
+	},
+	spy_invis = cloakConVars,
+	invis = cloakConVars,
+	weapon_invis = cloakConVars,
+	building_invis = cloakConVars,
+}
+
+---@param str string
+---@returns string
+local function descriptor(str)
+	local desc = string.Split(str, "_")
+	return desc[#desc]
+end
+
+---Change the settings to an addon's UI if it is installed and if the concommands related to them exist
+---@param category DForm
+---@param proxy string
+---@returns Panel[]
+local function resetProxySettings(category, proxy)
+	for _, panel in ipairs(category:GetChildren()) do
+		if IsValid(panel) and panel:GetName() ~= "DCategoryHeader" then
+			panel:Remove()
+		end
+	end
+
+	local proxyConVars = proxyConVarMap[proxy]
+	if not proxyConVars then
+		return {}
+	end
+
+	local proxyDermas = {}
+	for _, proxyConVar in ipairs(proxyConVars) do
+		local convar = proxyConVar[1]
+		local dermaClass = proxyConVar[2]
+
+		local derma = vgui.Create(dermaClass, category)
+		derma:SetDark(true)
+		derma:SetText(descriptor(convar))
+		derma:SetConVar(convar)
+		category:AddItem(derma)
+		derma:Dock(TOP)
+
+		proxyDermas[convar] = derma
+	end
+
+	return proxyDermas
+end
+
+---@param proxyDermas Panel[]
+---@returns ProxyData
+local function getProxyData(proxyDermas)
+	local data = {}
+
+	for name, _ in pairs(proxyDermas) do
+		---@diagnostic disable-next-line
+		data[name] = GetConVar(name) and GetConVar(name):GetFloat() or 0
+	end
+
+	return data
+end
+
+---@param tree DescendantTree
+local function setColorClient(tree)
+	local entity = Entity(tree.entity)
+	if not IsValid(entity) then
+		return
+	end
+
+	entity:SetColor(tree.color)
+	entity:SetRenderMode(tree.renderMode)
+	entity:SetRenderFX(tree.renderFx)
+	if tree.color.a < 255 then
+		entity:SetRenderMode(RENDERMODE_TRANSCOLOR)
+	end
+
+	for name, transformer in pairs(proxyTransformers) do
+		if
+			tree.proxyColor
+			and tree.proxyColor[name]
+			and tree.proxyColor[name].color
+			and transformer.entity
+			and entity[transformer.entity.name]
+		then
+			local ent = entity[transformer.entity.name]
+			if IsValid(ent) then
+				for convar, var in pairs(transformer.entity.varMap) do
+					if convar == "color" then
+						local color = Color(
+							tree.proxyColor[name].color.r,
+							tree.proxyColor[name].color.g,
+							tree.proxyColor[name].color.b,
+							tree.proxyColor[name].color.a
+						)
+						ent:SetColor(color)
+						if isvector(ent.Color) then
+							local multiplier = 255
+							if math.max(ent.Color:Unpack()) <= 1 then
+								multiplier = 1
+							end
+							ent.Color = multiplier * color:ToVector()
+						end
+						if isvector(ent["Get" .. var](ent)) then
+							ent["Set" .. var](ent, color:ToVector())
+						end
+					else
+						if isfunction(ent["Set" .. var]) then
+							local isBool = isbool(ent["Get" .. var](ent))
+							local val = GetConVar(convar)
+								and Either(isBool, GetConVar(convar):GetBool(), GetConVar(convar):GetFloat())
+							ent["Set" .. var](ent, val)
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if #tree.children == 0 then
+		return
+	end
+	for _, child in ipairs(tree.children) do
+		setColorClient(child)
+	end
+end
 
 ---@param cPanel ControlPanel|DForm
 ---@param colorable Colorable
@@ -577,15 +843,13 @@ function TOOL.BuildCPanel(cPanel, colorable)
 	local proxySet = colorForm:TextEntry("Proxy:", "colortree_proxy")
 	---@cast proxySet DTextEntry
 	proxySet:SetHistoryEnabled(true)
-	proxySet.History = {
-		"PlayerColor",
-		"ItemTintColor",
-		"YellowLevel",
-		"ModelGlowColor",
-	}
+	proxySet.History = table.GetKeys(proxyConVarMap)
 	renderMode:Dock(TOP)
 	renderFx:Dock(TOP)
 	proxySet:Dock(TOP)
+
+	local proxySettings = makeCategory(colorForm, "Proxy Settings", "DForm")
+	local proxyDermas = resetProxySettings(proxySettings, proxySet:GetText())
 
 	local settings = makeCategory(cPanel, "Settings", "DForm")
 
@@ -607,46 +871,144 @@ function TOOL.BuildCPanel(cPanel, colorable)
 		syncTree(descendantTree)
 	end
 
+	---@param node ColorTreePanel_Node
+	---@param proxy MaterialProxy
+	---@param propagate boolean
+	local function setProxyData(node, proxy, propagate)
+		node.info.proxyColor = node.info.proxyColor or {}
+		node.info.proxyColor[proxy] = {
+			color = node.info.proxyColor[proxy] and node.info.proxyColor[proxy].color or color_white,
+			data = getProxyData(proxyDermas),
+		}
+
+		if propagate then
+			if node:GetChildNodeCount() == 0 then
+				return
+			end
+
+			for _, childNode in ipairs(node:GetChildNodes()) do
+				setProxyData(childNode, proxy, propagate)
+			end
+		end
+	end
+
+	local shouldSet = false
+	local editors = {}
+
+	---Anytime the proxy entry changes, hook the new dermas. Return the dermas that have the IsEditing method, for tracking
+	---@param dermas {[string]: Panel}
+	---@param proxy MaterialProxy
+	---@return Panel[]
+	local function hookProxies(dermas, proxy)
+		local dermaEditors = {}
+		for _, derma in pairs(dermas) do
+			if derma:GetName() == "DNumSlider" then
+				table.insert(dermaEditors, derma)
+			end
+			function derma:OnValueChanged()
+				local selectedNode = treePanel:GetSelectedItem()
+				if not selectedNode or not IsValid(Entity(selectedNode.info.entity)) then
+					return
+				end
+
+				shouldSet = true
+				setProxyData(selectedNode, proxy, propagate:GetChecked())
+				setColorClient(descendantTree)
+			end
+
+			function derma:OnChange()
+				local selectedNode = treePanel:GetSelectedItem()
+				if not selectedNode or not IsValid(Entity(selectedNode.info.entity)) then
+					return
+				end
+
+				shouldSet = true
+				setProxyData(selectedNode, proxy, propagate:GetChecked())
+				setColorClient(descendantTree)
+			end
+		end
+		return dermaEditors
+	end
+
+	---@param newVal string
+	function proxySet:OnValueChange(newVal)
+		colorPicker:SetLabel("Color " .. newVal)
+		proxyDermas = resetProxySettings(proxySettings, newVal)
+		editors = hookProxies(proxyDermas, newVal)
+	end
+
+	hookProxies(proxyDermas, proxySet:GetText())
+
+	---@param node ColorTreePanel_Node
+	---@param color Color
+	---@param propagate boolean
+	local function setColor(node, color, propagate)
+		local proxy = proxySet:GetText()
+		if #proxy > 0 then
+			node.info.proxyColor = node.info.proxyColor or {}
+			node.info.proxyColor[proxy] = {
+				color = color,
+				data = getProxyData(proxyDermas),
+			}
+		else
+			node.info.color = color
+		end
+
+		if propagate then
+			if node:GetChildNodeCount() == 0 then
+				return
+			end
+
+			for _, childNode in ipairs(node:GetChildNodes()) do
+				setColor(childNode, color, propagate)
+			end
+		end
+	end
+
 	---@param newColor Color
-	---@diagnostic disable-next-line
 	function colorPicker.Mixer:ValueChanged(newColor)
 		local selectedNode = treePanel:GetSelectedItem()
 		if not selectedNode or not IsValid(Entity(selectedNode.info.entity)) then
 			return
 		end
 
-		---@param node ColorTreePanel_Node
-		local function setColor(node)
-			if #proxySet:GetText() > 0 then
-				node.info.proxyColor = node.info.proxyColor or {}
-				node.info.proxyColor[proxySet:GetText()] = newColor
-			else
-				node.info.color = newColor
-			end
-		end
+		shouldSet = true
 
-		setColor(selectedNode)
-		if propagate:GetChecked() then
-			for _, childNode in ipairs(selectedNode:GetChildNodes()) do
-				setColor(childNode)
-			end
-		end
+		setColor(selectedNode, newColor, propagate:GetChecked())
 
 		local h, s, v = ColorToHSV(newColor)
 		haloColor = HSVToColor(math.abs(h - 180), s, v)
-		syncTree(descendantTree)
+		setColorClient(descendantTree)
 	end
+
 	---@param node ColorTreePanel_Node
 	function treePanel:OnNodeSelected(node)
 		haloedEntity = Entity(node.info.entity)
 	end
 
-	if IsValid(treePanel.ancestor) then
-		treePanel.ancestor:SetSelected(true)
+	---@param editors Panel[]|DNumSlider[]
+	---@return boolean
+	local function checkEditing(editors)
+		for _, editor in ipairs(editors) do
+			if editor:IsEditing() then
+				return true
+			end
+		end
+		return false
 	end
 
+	local lastThink = CurTime()
 	local lastColor = {}
+	timer.Remove("colortree_think")
 	timer.Create("colortree_think", 0, -1, function()
+		local now = CurTime()
+		local editing = colorPicker.Mixer.HSV:IsEditing() or checkEditing(editors)
+		if now - lastThink > 0.1 and shouldSet and not editing then
+			syncTree(descendantTree)
+			lastThink = now
+			shouldSet = false
+		end
+
 		if lock:GetChecked() then
 			return
 		end
@@ -658,6 +1020,7 @@ function TOOL.BuildCPanel(cPanel, colorable)
 			lastColor = currentColor
 		end
 	end)
+	timer.Start("colortree_think")
 end
 
 hook.Add("PreDrawHalos", "colortree_halos", function()
