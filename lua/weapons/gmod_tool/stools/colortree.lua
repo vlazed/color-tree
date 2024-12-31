@@ -9,25 +9,10 @@ TOOL.ClientConVar["propagate"] = 0
 
 ---@module "colortree.shared.helpers"
 local helpers = include("colortree/shared/helpers.lua")
+---@module "colortree.shared.proxyTransformers"
+local pt = include("colortree/shared/proxyTransformers.lua")
 
-local cloakProxies, glowProxies, proxyTransformers
-
----We set the transformers after global functions have loaded, so that we are guaranteed access to them
----when we need to use them.
----TODO: I think this implementation is susceptible to race conditions related to the load order of this addon
----Do further testing.
-local function loadProxy()
-	timer.Simple(0, function()
-		---@module "colortree.shared.proxyTransformers"
-		local pt = include("colortree/shared/proxyTransformers.lua")
-
-		cloakProxies, glowProxies, proxyTransformers = pt.cloakProxies, pt.glowProxies, pt.proxyTransformers
-	end)
-end
-loadProxy()
----@cast cloakProxies Set<MaterialProxy>
----@cast glowProxies Set<MaterialProxy>
----@cast proxyTransformers ProxyTransformers
+local cloakProxies, glowProxies, proxyTransformers = pt.cloakProxies, pt.glowProxies, pt.proxyTransformers
 
 local decodeData = helpers.decodeData
 
@@ -102,8 +87,10 @@ if SERVER then
 				end
 
 				local transformer = proxyTransformers[proxyName]
-				if transformer and transformer.apply then
-					transformer.apply(ply, ent, transformer.transform(proxy))
+				local apply = transformer and transformer.apply
+				local transform = transformer and transformer.transform
+				if apply and transform then
+					apply(ply, ent, transform(proxy))
 				end
 			end
 

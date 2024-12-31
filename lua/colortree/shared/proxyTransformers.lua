@@ -26,6 +26,24 @@ local function glowReset(ply, ent, data)
 	duplicator.ClearEntityModifier(ent, "MatproxyTF2CritGlow")
 end
 
+---@type DataApplier
+local function glowApply(ply, ent, data)
+	---@diagnostic disable-next-line
+	---@cast GiveMatproxyTF2CritGlow DataApplier
+	if isfunction(GiveMatproxyTF2CritGlow) then ---@diagnostic disable-line
+		GiveMatproxyTF2CritGlow(ply, ent, data) ---@diagnostic disable-line
+	end
+end
+
+---@type DataApplier
+local function paintApply(ply, ent, data)
+	---@diagnostic disable-next-line
+	---@cast GiveMatproxyTF2ItemPaint DataApplier
+	if isfunction(GiveMatproxyTF2ItemPaint) then ---@diagnostic disable-line
+		GiveMatproxyTF2ItemPaint(ply, ent, data) ---@diagnostic disable-line
+	end
+end
+
 ---@type ProxyTransformer
 local cloakFuncs = {
 	entity = {
@@ -41,7 +59,13 @@ local cloakFuncs = {
 			matproxy_tf2cloakeffect_anim_timeout = "CloakAnimTimeOut",
 		},
 	},
-	apply = GiveMatproxyTF2CloakEffect, ---@diagnostic disable-line
+	apply = function(ply, ent, data)
+		---@diagnostic disable-next-line
+		---@cast GiveMatproxyTF2CloakEffect DataApplier
+		if isfunction(GiveMatproxyTF2CloakEffect) then ---@diagnostic disable-line
+			GiveMatproxyTF2CloakEffect(ply, ent, data) ---@diagnostic disable-line
+		end
+	end,
 	transform = function(proxy)
 		return {
 			TintR = proxy.color.r,
@@ -67,6 +91,7 @@ local cloakFuncs = {
 	end,
 }
 
+---@type ProxyTransformers
 local proxyTransformers = {
 	["ItemTintColor"] = {
 		entity = {
@@ -76,7 +101,7 @@ local proxyTransformers = {
 				matproxy_tf2itempaint_override = "PaintOverride",
 			},
 		},
-		apply = GiveMatproxyTF2ItemPaint, ---@diagnostic disable-line
+		apply = paintApply,
 		transform = function(proxy)
 			return {
 				ColorR = proxy.color.r,
@@ -106,7 +131,7 @@ local proxyTransformers = {
 				matproxy_tf2critglow_sparksjc = "SparksJarateColorable",
 			},
 		},
-		apply = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
+		apply = glowApply,
 		transform = function(proxy)
 			return {
 				JarateSparks = proxy.data.matproxy_tf2critglow_sparksj,
@@ -134,7 +159,7 @@ local proxyTransformers = {
 				matproxy_tf2critglow_sparksjc = "SparksJarateColorable",
 			},
 		},
-		apply = GiveMatproxyTF2CritGlow, ---@diagnostic disable-line
+		apply = glowApply,
 		transform = function(proxy)
 			return {
 				RedSparks = proxy.data.matproxy_tf2critglow_sparksr,

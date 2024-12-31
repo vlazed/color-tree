@@ -31,42 +31,42 @@ local function setColorClient(tree)
 	end
 
 	for name, transformer in pairs(proxyTransformers) do
-		if
-			tree.proxyColor
+		local proxyExists = tree.proxyColor
 			and tree.proxyColor[name]
 			and tree.proxyColor[name].color
 			and transformer.entity
 			and entity[transformer.entity.name]
-		then
-			local ent = entity[transformer.entity.name]
-			if not IsValid(ent) then
-				continue
-			end
+		if not proxyExists then
+			continue
+		end
+		local ent = entity[transformer.entity.name]
+		if not IsValid(ent) then
+			continue
+		end
 
-			for convar, var in pairs(transformer.entity.varMap) do
-				if convar == "color" then
-					local color = Color(
-						tree.proxyColor[name].color.r,
-						tree.proxyColor[name].color.g,
-						tree.proxyColor[name].color.b,
-						tree.proxyColor[name].color.a
-					)
-					ent:SetColor(color)
-					if isvector(ent.Color) then
-						local multiplier = 255
-						if math.max(ent.Color:Unpack()) <= 1 then
-							multiplier = 1
-						end
-						ent.Color = multiplier * color:ToVector()
+		for convar, var in pairs(transformer.entity.varMap) do
+			if convar == "color" then
+				local color = Color(
+					tree.proxyColor[name].color.r,
+					tree.proxyColor[name].color.g,
+					tree.proxyColor[name].color.b,
+					tree.proxyColor[name].color.a
+				)
+				ent:SetColor(color)
+				if isvector(ent.Color) then
+					local multiplier = 255
+					if math.max(ent.Color:Unpack()) <= 1 then
+						multiplier = 1
 					end
-					if isvector(ent["Get" .. var](ent)) then
-						ent["Set" .. var](ent, color:ToVector())
-					end
-				else
-					if isfunction(ent["Set" .. var]) then
-						local val = getBoolOrFloatConVar(convar, isbool(ent["Get" .. var](ent)))
-						ent["Set" .. var](ent, val)
-					end
+					ent.Color = multiplier * color:ToVector()
+				end
+				if isvector(ent["Get" .. var](ent)) then
+					ent["Set" .. var](ent, color:ToVector())
+				end
+			else
+				if isfunction(ent["Set" .. var]) then
+					local val = getBoolOrFloatConVar(convar, isbool(ent["Get" .. var](ent)))
+					ent["Set" .. var](ent, val)
 				end
 			end
 		end
