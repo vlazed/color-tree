@@ -437,16 +437,31 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		return editors
 	end
 
+	local settingModelEntry = false
+
 	function modelEntry:OnValueChange(newVal)
-		dermaEditors = resetModelSettings(modelForm, newVal)
+		-- In case we are requesting a model change
+		if settingModelEntry then
+			return
+		end
 		local node = treePanel:GetSelectedItem()
-		node.Icon:SetImage(getModelNodeIconPath(Entity(node.info.entity), newVal, 0))
+
+		net.Start("modeltree_modelrequest")
+		net.WriteString(newVal)
+		net.WriteString(node.info.model)
+		net.SendToServer()
+		settingModelEntry = true
 	end
 
-	---@param node ColorTreePanel_Node
+	---@param node ModelTreePanel_Node
 	function treePanel:OnNodeSelected(node)
+		settingModelEntry = true
+
+		modelEntry:SetValue(node.info.model)
 		panelState.haloedEntity = Entity(node.info.entity)
 		dermaEditors = resetModelSettings(modelForm, panelState.modelTree)
+
+		settingModelEntry = false
 	end
 
 	---If we are moving a `DNumSlider`, we are editing.
@@ -460,6 +475,22 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		end
 		return false
 	end
+
+	net.Receive("modeltree_modelresponse", function()
+		local success = net.ReadBool()
+		local model = net.ReadString()
+		modelEntry:SetValue(model)
+
+		if success then
+			local node = treePanel:GetSelectedItem()
+			node.info.model = model
+			dermaEditors = resetModelSettings(modelForm, panelState.modelTree)
+			node.Icon:SetImage(getModelNodeIconPath(Entity(node.info.entity), model, 0))
+			shouldSet = true
+		end
+
+		settingModelEntry = false
+	end)
 
 	local lastThink = CurTime()
 	local lastModelChildren = {}

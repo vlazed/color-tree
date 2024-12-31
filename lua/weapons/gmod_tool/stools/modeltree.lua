@@ -56,9 +56,10 @@ if SERVER then
 		if IsValid(ply) then
 			ent.modeltree_owner = ply
 		end
-		if ent:GetModel() ~= data.modeltree_defaultmodel then
+		if ent:GetModel() ~= data.modeltree_model then
 			ent:SetModel(data.modeltree_model)
 		end
+
 		ent:SetSkin(data.modeltree_skin)
 		ent:SetBodyGroups(data.modeltree_bodygroups)
 
@@ -93,6 +94,25 @@ if SERVER then
 	end
 
 	duplicator.RegisterEntityModifier("modeltree", setModel)
+
+	net.Receive("modeltree_modelrequest", function(len, ply)
+		local newModel = net.ReadString()
+		local oldModel = net.ReadString()
+		local setModel = ""
+		local success = false
+
+		if IsUselessModel(newModel) or not util.IsValidModel(newModel) then
+			setModel = oldModel
+		else
+			setModel = newModel
+			success = true
+		end
+
+		net.Start("modeltree_modelresponse")
+		net.WriteBool(success)
+		net.WriteString(setModel)
+		net.Send(ply)
+	end)
 
 	net.Receive("modeltree_sync", function(len, ply)
 		local treeLen = net.ReadUInt(17)
