@@ -513,6 +513,22 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local shouldSet = false
 	local dermaEditors = {}
 
+	function renderMode:OnSelect(_, _, val)
+		local selectedNode = treePanel:GetSelectedItem()
+		if IsValid(selectedNode) then
+			selectedNode.info.renderMode = val
+			shouldSet = true
+		end
+	end
+
+	function renderFx:OnSelect(_, _, val)
+		local selectedNode = treePanel:GetSelectedItem()
+		if IsValid(selectedNode) then
+			selectedNode.info.renderFx = val
+			shouldSet = true
+		end
+	end
+
 	---Anytime the proxy entry changes, hook the new dermas. Return the dermas that have the IsEditing method, for tracking
 	---@param dermas {[string]: Panel}
 	---@param proxy MaterialProxy
