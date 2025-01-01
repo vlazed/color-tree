@@ -19,26 +19,22 @@ end
 ---@param tree ColorTree
 local function setColorClient(tree)
 	local entity = Entity(tree.entity)
+	---@cast entity Colorable
 	if not IsValid(entity) then
 		return
 	end
 
 	-- Advanced Colors
 	if next(tree.colors) then
-		entity._adv_colours = {}
 		for id, color in pairs(tree.colors) do
-			entity._adv_colours_mats = entity._adv_colours_mats or {}
-			entity._adv_colours_mats[id] = Material(entity:GetSubMaterial(id))
-
-			entity._adv_colours[id] = color
+			entity:SetSubColor(id, color)
 		end
 	else
-		entity._adv_colours_mats = {}
 		entity._adv_colours = {}
-		entity:SetColor(tree.color)
 	end
 	entity._adv_colours_flush = true
 
+	entity:SetColor(tree.color)
 	entity:SetRenderMode(tree.renderMode)
 	entity:SetRenderFX(tree.renderFx)
 	if tree.color.a < 255 then
@@ -655,18 +651,19 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		shouldSet = true
 
 		-- Advanced Colors
-		local colors = 0
+		local selected = 0
 		if IsValid(submaterialFrame) then
-			local submaterials = submaterialFrame:GetSubMaterials()
-			colors = #submaterials
-			if colors == 0 then
+			local selectedSubMaterials, submaterialCount = submaterialFrame:GetSelectedSubMaterials()
+			selected = #selectedSubMaterials
+			if submaterialCount == 0 then
 				selectedNode.info.colors = {}
 			end
-			for _, struct in ipairs(submaterials) do
-				selectedNode.info.colors[struct[1]] = newColor
+			for _, id in ipairs(selectedSubMaterials) do
+				selectedNode.info.colors[id] = newColor
 			end
 		end
-		if colors == 0 then
+		-- If we want to manipulate the colors but keep the information about the submaterial colors
+		if selected == 0 then
 			setColor(selectedNode, newColor, propagate:GetChecked())
 		end
 
@@ -700,8 +697,9 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 	hook.Remove("OnContextMenuOpen", "colortree_hookcontext")
 	hook.Add("OnContextMenuOpen", "colortree_hookcontext", function()
+		local tool = LocalPlayer():GetTool()
 		-- Advanced Colors
-		if IsValid(submaterialFrame) then
+		if IsValid(submaterialFrame) and tool and tool.Mode == "colortree" then
 			submaterialFrame:SetVisible(true)
 			submaterialFrame:MakePopup()
 		end

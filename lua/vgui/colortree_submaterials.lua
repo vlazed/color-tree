@@ -64,7 +64,7 @@ function PANEL:Init()
 
 	self.Selection.MaterialList = vgui.Create("DListView", self.Selection)
 	self.Selection.MaterialList:AddColumn("Selected")
-	self.Selection.MaterialList:SetMultiSelect(false)
+	self.Selection.MaterialList:SetMultiSelect(true)
 
 	self.Selection.ClearButton = vgui.Create("DButton", self.Selection)
 	self.Selection.ClearButton:SetText("Clear All")
@@ -118,8 +118,16 @@ function PANEL:PerformLayout(width, height)
 	self.Selection.PreviewIcon:SetTall(self.Selection.PreviewIcon:GetWide())
 end
 
-function PANEL:GetSubMaterials()
-	return self.submaterials
+---@return table selectedSubmaterials Currently selected submaterials for manipulation
+---@return integer controlledSubMaterials How many submaterials are being set. If this is 0, then entity will reset its submaterial colors
+function PANEL:GetSelectedSubMaterials()
+	local selected = {}
+
+	for _, line in ipairs(self.Selection.MaterialList:GetSelected()) do
+		table.insert(selected, line:GetValue(3))
+	end
+
+	return selected, #self.Selection.MaterialList:GetLines()
 end
 
 function PANEL:TransformSubMaterials(submaterialIds)
@@ -164,7 +172,7 @@ function PANEL:RefreshSelection()
 	for _, submaterialStruct in ipairs(self.submaterials) do
 		---@type DListView_Line
 		---@diagnostic disable-next-line
-		local row = selection.MaterialList:AddLine(submaterialStruct[2], submaterialStruct[3])
+		local row = selection.MaterialList:AddLine(submaterialStruct[2], submaterialStruct[3], submaterialStruct[1])
 
 		function row.OnSelect()
 			---@type IMaterial
@@ -175,6 +183,10 @@ function PANEL:RefreshSelection()
 			previewIcon:SetVisible(true)
 			previewIcon:SetImage(material:GetName())
 			previewIcon:SetTall(previewIcon:GetWide() / aspectRatio)
+		end
+
+		function row:OnRightClick()
+			self:SetSelected(false)
 		end
 	end
 	selection.MaterialList:SetDirty(true)
@@ -197,7 +209,7 @@ function PANEL:RefreshGallery()
 
 		materialIcon:SetSize(aspectRatio * self.ButtonHeight, self.ButtonHeight)
 
-		materialIcon.DoClick = function()
+		function materialIcon.DoClick()
 			if not self.submaterialSet[i - 1] then
 				self.submaterialSet[i - 1] =
 					table.insert(self.submaterials, { i - 1, shortPath(materialPath), material })

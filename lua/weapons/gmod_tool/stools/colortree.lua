@@ -62,7 +62,7 @@ if SERVER then
 		if IsValid(ply) then
 			ent.colortree_owner = ply
 		end
-		-- FIXME: Advanced Colors seem to not save correctly
+
 		if data.colortree_colors and next(data.colortree_colors) then
 			for id, color in pairs(data.colortree_colors) do
 				---@diagnostic disable-next-line
@@ -75,6 +75,7 @@ if SERVER then
 		if data.colortree_color.a < 255 then
 			ent:SetRenderMode(RENDERMODE_TRANSCOLOR)
 		end
+
 		if data.colortree_proxyColor then
 			local hasCloak = false
 			local hasGlow = false
@@ -116,6 +117,7 @@ if SERVER then
 			end
 		end
 
+		duplicator.ClearEntityModifier(ent, "colortree")
 		duplicator.StoreEntityModifier(ent, "colortree", data)
 	end
 
