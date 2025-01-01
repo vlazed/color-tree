@@ -62,6 +62,13 @@ if SERVER then
 		if IsValid(ply) then
 			ent.colortree_owner = ply
 		end
+		-- FIXME: Advanced Colors seem to not save correctly
+		if data.colortree_colors and next(data.colortree_colors) then
+			for id, color in pairs(data.colortree_colors) do
+				---@diagnostic disable-next-line
+				ent:SetSubColor(id, Color(color.r, color.g, color.b, color.a))
+			end
+		end
 		ent:SetColor(data.colortree_color)
 		ent:SetRenderMode(data.colortree_renderMode)
 		ent:SetRenderFX(data.colortree_renderFx)
@@ -118,6 +125,7 @@ if SERVER then
 	local function getColorTreeData(node)
 		return {
 			colortree_color = node.color,
+			colortree_colors = node.colors,
 			colortree_renderMode = node.renderMode,
 			colortree_renderFx = node.renderFx,
 			colortree_proxyColor = node.proxyColor,

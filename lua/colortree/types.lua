@@ -35,13 +35,17 @@
 
 ---An entity that has a color method and fields from other addons
 ---@class Colorable: Entity
----@field ProxyentCritGlow Entity
----@field ProxyentPaintColor Entity
+---@field ProxyentCritGlow Entity -- Glow Tools Entity
+---@field ProxyentPaintColor Entity -- Hat Painter Entity
+---@field ProxyentCloakEffect Entity -- Cloak Tool Entity
 ---@field colortree_owner Player
+---@field SetSubColor fun(self: Colorable, ind: integer, color: Color)? -- Setter from Advanced Color Tool. We use this to check if it is installed
+---@field _adv_colours table?
 
 ---Dupe data for color trees
 ---@class ColorTreeData
 ---@field colortree_color Color
+---@field colortree_colors Color[]?
 ---@field colortree_renderMode number
 ---@field colortree_renderFx number
 ---@field colortree_proxyColor ProxyColor
@@ -52,6 +56,7 @@
 ---@field route integer[]?
 ---@field entity integer
 ---@field color Color
+---@field colors Color[]?
 ---@field renderMode number
 ---@field renderFx number
 ---@field proxyColor ProxyColor?

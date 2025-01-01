@@ -23,7 +23,22 @@ local function setColorClient(tree)
 		return
 	end
 
-	entity:SetColor(tree.color)
+	-- Advanced Colors
+	if next(tree.colors) then
+		entity._adv_colours = {}
+		for id, color in pairs(tree.colors) do
+			entity._adv_colours_mats = entity._adv_colours_mats or {}
+			entity._adv_colours_mats[id] = Material(entity:GetSubMaterial(id))
+
+			entity._adv_colours[id] = color
+		end
+	else
+		entity._adv_colours_mats = {}
+		entity._adv_colours = {}
+		entity:SetColor(tree.color)
+	end
+	entity._adv_colours_flush = true
+
 	entity:SetRenderMode(tree.renderMode)
 	entity:SetRenderFX(tree.renderFx)
 	if tree.color.a < 255 then
@@ -194,6 +209,7 @@ local function addNode(parent, entity, info, rootInfo)
 
 		menu:AddOption("Reset Color", function()
 			info.color = color_white
+			info.colors = entity.SetSubColor and {}
 			syncTree(rootInfo)
 		end)
 
@@ -224,7 +240,7 @@ local function entityHierarchy(parent, route)
 		return tree
 	end
 
-	---@type Entity[]
+	---@type Colorable[]
 	local children = getValidModelChildren(parent)
 
 	for i, child in ipairs(children) do
@@ -235,6 +251,7 @@ local function entityHierarchy(parent, route)
 				route = route,
 				entity = child:EntIndex(),
 				color = child:GetColor(),
+				colors = child.SetSubColor and {},
 				children = entityHierarchy(child, route),
 				renderFx = child:GetRenderFX(),
 				renderMode = child:GetRenderMode(),
@@ -377,6 +394,7 @@ local function buildTree(treePanel, entity)
 	local hierarchy = {
 		entity = entity:EntIndex(),
 		color = entity:GetColor(),
+		colors = entity.SetSubColor and {},
 		renderFx = entity:GetRenderFX(),
 		renderMode = entity:GetRenderMode(),
 		children = entityHierarchy(entity, {}),
@@ -390,6 +408,29 @@ local function buildTree(treePanel, entity)
 	hierarchyPanel(hierarchy.children, treePanel.ancestor, hierarchy)
 
 	return hierarchy
+end
+
+---@type colortree_submaterials
+local submaterialFrame = nil
+
+---Set the entity for the submaterial frame.
+---
+---~~VENT:~~
+---
+---~~the cringiest thing to exist 🤮🤮🤮, because panels don't update immediately for some reason (need to move the divider to see it happen)
+---so we force it with the worst thing possible: recreating the vgui 🤢~~
+---@param entity Entity
+---@param submaterials table?
+local function setSubMaterialEntity(entity, submaterials)
+	if IsValid(submaterialFrame) then
+		submaterialFrame:Remove()
+	end
+
+	submaterialFrame = vgui.Create("colortree_submaterials")
+	submaterialFrame:SetEntity(entity)
+	if submaterials then
+		submaterialFrame:SetSubMaterials(submaterials)
+	end
 end
 
 ---@param cPanel DForm|ControlPanel
@@ -452,6 +493,10 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	local reset = settings:Button("Reset All Colors", "")
 
 	colorPicker:SetLabel("Color " .. proxySet:GetText())
+
+	if IsValid(submaterialFrame) then
+		submaterialFrame:Remove()
+	end
 
 	return {
 		treePanel = treePanel,
@@ -609,7 +654,21 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 		shouldSet = true
 
-		setColor(selectedNode, newColor, propagate:GetChecked())
+		-- Advanced Colors
+		local colors = 0
+		if IsValid(submaterialFrame) then
+			local submaterials = submaterialFrame:GetSubMaterials()
+			colors = #submaterials
+			if colors == 0 then
+				selectedNode.info.colors = {}
+			end
+			for _, struct in ipairs(submaterials) do
+				selectedNode.info.colors[struct[1]] = newColor
+			end
+		end
+		if colors == 0 then
+			setColor(selectedNode, newColor, propagate:GetChecked())
+		end
 
 		local h, s, v = ColorToHSV(newColor)
 		panelState.haloColor = HSVToColor(math.abs(h - 180), s, v)
@@ -618,7 +677,13 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 	---@param node ColorTreePanel_Node
 	function treePanel:OnNodeSelected(node)
-		panelState.haloedEntity = Entity(node.info.entity)
+		local entity = Entity(node.info.entity)
+		---@cast entity Colorable
+
+		if isfunction(entity.SetSubColor) then
+			setSubMaterialEntity(entity, next(node.info.colors) and table.GetKeys(node.info.colors))
+		end
+		panelState.haloedEntity = entity
 	end
 
 	---If we are moving a `DNumSlider` or a `DColorMixer`, we are editing.
@@ -632,6 +697,25 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		end
 		return false
 	end
+
+	hook.Remove("OnContextMenuOpen", "colortree_hookcontext")
+	hook.Add("OnContextMenuOpen", "colortree_hookcontext", function()
+		-- Advanced Colors
+		if IsValid(submaterialFrame) then
+			submaterialFrame:SetVisible(true)
+			submaterialFrame:MakePopup()
+		end
+	end)
+
+	hook.Remove("OnContextMenuClose", "colortree_hookcontext")
+	hook.Add("OnContextMenuClose", "colortree_hookcontext", function()
+		-- Advanced Colors
+		if IsValid(submaterialFrame) then
+			submaterialFrame:SetVisible(false)
+			submaterialFrame:SetMouseInputEnabled(false)
+			submaterialFrame:SetKeyboardInputEnabled(false)
+		end
+	end)
 
 	local lastThink = CurTime()
 	local lastColor = {}
