@@ -56,11 +56,25 @@ function PANEL:Init()
 	self.ButtonHeight = 80
 
 	self.Divider = vgui.Create("DHorizontalDivider", self)
+	self.Help = vgui.Create("DPanel", self)
+	self.Help.Text = vgui.Create("DLabel", self.Help)
+	self.Help.Text:SetDark(true)
+	self.Help.Text:SetText(
+		"Select a material from the gallery, and then click on the lines on the left to edit the color"
+	)
+	self.Help.Text:SetWrap(true)
 
 	---@type colortree_selection
 	---@diagnostic disable-next-line
 	self.Selection = vgui.Create("DPanel", self)
 	self.Selection.PreviewIcon = vgui.Create("DImage", self.Selection)
+
+	self.Selection.PreviewIcon.TestHover = function(_, x, y)
+		local materialPath = self.Selection.PreviewIcon:GetImage()
+		self.hovering = true
+		self.Tooltip:SetPos(x + 10, y - 0.55 * self.Tooltip:GetTall())
+		self.Tooltip:SetText(shortPath(materialPath))
+	end
 
 	self.Selection.MaterialList = vgui.Create("DListView", self.Selection)
 	self.Selection.MaterialList:AddColumn("Selected")
@@ -90,6 +104,7 @@ function PANEL:Init()
 
 	self.submaterials = {}
 	self.submaterialSet = {}
+	self.hovering = false
 end
 
 function PANEL:Paint(w, h)
@@ -115,6 +130,11 @@ function PANEL:PerformLayout(width, height)
 	self.Selection.MaterialList:Dock(FILL)
 	self.Selection.ClearButton:Dock(BOTTOM)
 
+	self.Help:Dock(BOTTOM)
+	self.Help:DockMargin(0, 5, 0, 0)
+	self.Help.Text:Dock(FILL)
+	self.Help.Text:DockMargin(10, 0, 10, 0)
+
 	self.Selection.PreviewIcon:SetTall(self.Selection.PreviewIcon:GetWide())
 end
 
@@ -130,6 +150,8 @@ function PANEL:GetSelectedSubMaterials()
 	return selected, #self.Selection.MaterialList:GetLines()
 end
 
+---@param submaterialIds integer[]
+---@return table[]
 function PANEL:TransformSubMaterials(submaterialIds)
 	local transformed = {}
 	local materials = self.Entity:GetMaterials()
@@ -141,6 +163,7 @@ function PANEL:TransformSubMaterials(submaterialIds)
 	return transformed
 end
 
+---@param submaterials integer[]
 function PANEL:SetSubMaterials(submaterials)
 	self.submaterials = self:TransformSubMaterials(submaterials)
 	self:RefreshSelection()
@@ -152,6 +175,7 @@ function PANEL:RefreshSubMaterialSet()
 	end
 end
 
+---Clear the selected submaterials list
 function PANEL:ClearSelection()
 	self.submaterials = {}
 	self.submaterialSet = {}
@@ -162,6 +186,7 @@ function PANEL:ClearSelection()
 	self:RefreshSelection()
 end
 
+---Refill the material list with the currently selected submaterials
 function PANEL:RefreshSelection()
 	local selection = self.Selection
 	local previewIcon = self.Selection.PreviewIcon
@@ -183,15 +208,28 @@ function PANEL:RefreshSelection()
 			previewIcon:SetVisible(true)
 			previewIcon:SetImage(material:GetName())
 			previewIcon:SetTall(previewIcon:GetWide() / aspectRatio)
+
+			self:OnSelectedMaterial(submaterialStruct[1])
 		end
 
 		function row:OnRightClick()
 			self:SetSelected(false)
 		end
+
+		function row.TestHover(_, x, y)
+			self.hovering = true
+			self.Tooltip:SetPos(x + 10, y - 0.55 * self.Tooltip:GetTall())
+			self.Tooltip:SetText(submaterialStruct[2])
+		end
 	end
 	selection.MaterialList:SetDirty(true)
 end
 
+---Event when the user clicks on a selected submaterial in the material list
+---@param index number submaterial id
+function PANEL:OnSelectedMaterial(index) end
+
+---Clear the gallery for the new selected entity
 function PANEL:RefreshGallery()
 	if not IsValid(self.Entity) then
 		return
@@ -223,7 +261,7 @@ function PANEL:RefreshGallery()
 		end
 
 		materialIcon.TestHover = function(_, x, y)
-			self.Tooltip:SetVisible(true)
+			self.hovering = true
 			self.Tooltip:SetPos(x + 10, y - 0.55 * self.Tooltip:GetTall())
 			self.Tooltip:SetText(shortPath(materialPath))
 		end
@@ -246,6 +284,14 @@ function PANEL:SetVisible(visible)
 	---@diagnostic disable-next-line
 	self.BaseClass.SetVisible(self, visible)
 	self.Tooltip:SetVisible(visible)
+end
+
+function PANEL:Think()
+	---@diagnostic disable-next-line
+	self.BaseClass.Think(self)
+
+	self.Tooltip:SetVisible(self:IsVisible() and self.hovering)
+	self.hovering = false
 end
 
 vgui.Register("colortree_submaterials", PANEL, "DFrame")

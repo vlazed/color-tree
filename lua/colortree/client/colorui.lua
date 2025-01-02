@@ -417,6 +417,7 @@ end
 
 ---@type colortree_submaterials
 local submaterialFrame = nil
+local ignore = false
 
 ---Set the entity for the submaterial frame.
 ---
@@ -426,7 +427,9 @@ local submaterialFrame = nil
 ---so we force it with the worst thing possible: recreating the vgui 🤢~~
 ---@param entity Entity
 ---@param submaterials table?
-local function setSubMaterialEntity(entity, submaterials)
+---@param treePanel ColorTreePanel
+---@param colorPicker ColorTreePicker
+local function setSubMaterialEntity(entity, submaterials, treePanel, colorPicker)
 	if IsValid(submaterialFrame) then
 		submaterialFrame:Remove()
 	end
@@ -435,6 +438,18 @@ local function setSubMaterialEntity(entity, submaterials)
 	submaterialFrame:SetEntity(entity)
 	if submaterials then
 		submaterialFrame:SetSubMaterials(submaterials)
+	end
+
+	-- We'll hook the submaterial frame here for the time being
+	if submaterialFrame and IsValid(submaterialFrame) then
+		function submaterialFrame:OnSelectedMaterial(id)
+			ignore = true
+			local node = treePanel:GetSelectedItem()
+			if node.info.colors[id] then
+				colorPicker.Mixer:SetColor(node.info.colors[id])
+			end
+			ignore = false
+		end
 	end
 end
 
@@ -652,6 +667,10 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 	---@param newColor Color
 	function colorPicker.Mixer:ValueChanged(newColor)
+		if ignore then
+			return
+		end
+
 		local selectedNode = treePanel:GetSelectedItem()
 		if not selectedNode or not IsValid(Entity(selectedNode.info.entity)) then
 			return
@@ -687,7 +706,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		---@cast entity Colorable
 
 		if isfunction(entity.SetSubColor) then
-			setSubMaterialEntity(entity, next(node.info.colors) and table.GetKeys(node.info.colors))
+			setSubMaterialEntity(entity, next(node.info.colors) and table.GetKeys(node.info.colors), self, colorPicker)
 		end
 		panelState.haloedEntity = entity
 	end
