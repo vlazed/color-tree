@@ -229,6 +229,10 @@ end
 ---@param index number submaterial id
 function PANEL:OnSelectedMaterial(index) end
 
+---Event when the user removes the selected subamterial in the material list
+---@param index number submaterial id
+function PANEL:OnRemovedSubMaterial(index) end
+
 ---Clear the gallery for the new selected entity
 function PANEL:RefreshGallery()
 	if not IsValid(self.Entity) then
@@ -252,8 +256,9 @@ function PANEL:RefreshGallery()
 				self.submaterialSet[i - 1] =
 					table.insert(self.submaterials, { i - 1, shortPath(materialPath), material })
 			else
-				table.remove(self.submaterials, self.submaterialSet[i])
+				table.remove(self.submaterials, self.submaterialSet[i - 1])
 				self.submaterialSet[i - 1] = nil
+				self:OnRemovedSubMaterial(i - 1)
 				self:RefreshSubMaterialSet()
 			end
 

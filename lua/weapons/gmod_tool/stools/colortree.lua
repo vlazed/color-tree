@@ -14,7 +14,61 @@ local pt = include("colortree/shared/proxyTransformers.lua")
 
 local cloakProxies, glowProxies, proxyTransformers = pt.cloakProxies, pt.glowProxies, pt.proxyTransformers
 
-local decodeData = helpers.decodeData
+local decodeData, isAdvancedColorsInstalled = helpers.decodeData, helpers.isAdvancedColorsInstalled
+
+do -- Keep track of the last time the (sub)colors of an entity or its children has changed
+	---@class Colorable
+	local meta = FindMetaTable("Entity")
+	if meta.colortree_oldSetColor == nil then
+		meta.colortree_oldSetColor = meta.SetColor
+	end
+
+	--- Propagate the changed color event to the ancestral entity
+	local function updateColor(entity)
+		if IsValid(entity) then
+			net.Start("colortree_update", true)
+			net.WriteEntity(entity)
+			net.WriteFloat(CurTime())
+			net.Broadcast()
+		end
+	end
+
+	function meta:SetColor(newColor, ...)
+		local root = self
+		while root:GetParent() ~= NULL do
+			root = self:GetParent()
+		end
+
+		if SERVER then
+			updateColor(root)
+		end
+
+		return self:colortree_oldSetColor(newColor, ...)
+	end
+
+	-- FIXME: Using a timer to bypass load order restrictions is messy. What alternative exists?
+	timer.Simple(0, function()
+		if meta.SetSubColor then
+			if meta.colortree_oldSetSubColor == nil then
+				meta.colortree_oldSetSubColor = meta.SetSubColor
+			end
+			function meta:SetSubColor(ind, newColor)
+				local root = self
+				while root:GetParent() ~= NULL do
+					root = self:GetParent()
+				end
+
+				if SERVER then
+					updateColor(root)
+				end
+
+				---INFO: No need to check nil if we did so earlier
+				---@diagnostic disable-next-line
+				return self:colortree_oldSetSubColor(ind, newColor)
+			end
+		end
+	end)
+end
 
 local lastColorable = NULL
 function TOOL:Think()
@@ -63,12 +117,22 @@ if SERVER then
 			ent.colortree_owner = ply
 		end
 
-		if data.colortree_colors and next(data.colortree_colors) then
+		-- Advanced Colour Tool Condition
+		if isAdvancedColorsInstalled(ent) then
 			for id, color in pairs(data.colortree_colors) do
 				---@diagnostic disable-next-line
 				ent:SetSubColor(id, Color(color.r, color.g, color.b, color.a))
 			end
+
+			local mats = ent:GetMaterials()
+			for id = 0, #mats - 1 do
+				if not data.colortree_colors[id - 1] then
+					---@diagnostic disable-next-line
+					ent:SetSubColor(id - 1, nil)
+				end
+			end
 		end
+
 		ent:SetColor(data.colortree_color)
 		ent:SetRenderMode(data.colortree_renderMode)
 		ent:SetRenderFX(data.colortree_renderFx)
@@ -161,6 +225,11 @@ if SERVER then
 	end)
 
 	return
+else
+	net.Receive("colortree_update", function(_, _)
+		local entity = net.ReadEntity()
+		entity.LastColorChange = net.ReadFloat()
+	end)
 end
 
 ---@module "colortree.client.colorui"
