@@ -168,7 +168,10 @@ end
 ---@param tree ColorTree
 local function refreshTree(tree)
 	local entity = tree.entity and Entity(tree.entity) or NULL
+	---@cast entity Colorable
+
 	tree.color = IsValid(entity) and entity:GetColor() or color_white
+	tree.colors = table.Copy(entity._adv_colours)
 	if not tree.children or #tree.children == 0 then
 		return
 	end
@@ -271,12 +274,18 @@ local function addChoiceFromRenders(comboBox, renderList)
 end
 
 ---Construct a flat array of the entity's descendant colors
----@param entity Entity
+---@param entity Colorable|Entity
 ---@param tbl Color[]
 ---@return Color[]
 local function getColorChildrenIdentifier(entity, tbl)
 	if not IsValid(entity) then
 		return {}
+	end
+
+	if entity._adv_colours and next(entity._adv_colours) then
+		for _, color in pairs(entity._adv_colours) do
+			table.insert(tbl, color)
+		end
 	end
 
 	local children = getValidModelChildren(entity)
@@ -730,6 +739,11 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		-- Whether we should receive updates from the server or not.
 		-- Useful if we want an external source to modify the colors of the entity
 		if lock:GetChecked() then
+			return
+		end
+
+		-- Don't check color children until we are done editing the colors
+		if editing then
 			return
 		end
 
