@@ -19,9 +19,20 @@ end
 ---@param tree ColorTree
 local function setColorClient(tree)
 	local entity = Entity(tree.entity)
+	---@cast entity Colorable
 	if not IsValid(entity) then
 		return
 	end
+
+	-- Advanced Colors
+	if next(tree.colors) then
+		for id, color in pairs(tree.colors) do
+			entity:SetSubColor(id, color)
+		end
+	else
+		entity._adv_colours = {}
+	end
+	entity._adv_colours_flush = true
 
 	entity:SetColor(tree.color)
 	entity:SetRenderMode(tree.renderMode)
@@ -157,7 +168,10 @@ end
 ---@param tree ColorTree
 local function refreshTree(tree)
 	local entity = tree.entity and Entity(tree.entity) or NULL
+	---@cast entity Colorable
+
 	tree.color = IsValid(entity) and entity:GetColor() or color_white
+	tree.colors = table.Copy(entity._adv_colours) or {}
 	if not tree.children or #tree.children == 0 then
 		return
 	end
@@ -194,6 +208,7 @@ local function addNode(parent, entity, info, rootInfo)
 
 		menu:AddOption("Reset Color", function()
 			info.color = color_white
+			info.colors = {}
 			syncTree(rootInfo)
 		end)
 
@@ -224,7 +239,7 @@ local function entityHierarchy(parent, route)
 		return tree
 	end
 
-	---@type Entity[]
+	---@type Colorable[]
 	local children = getValidModelChildren(parent)
 
 	for i, child in ipairs(children) do
@@ -235,6 +250,7 @@ local function entityHierarchy(parent, route)
 				route = route,
 				entity = child:EntIndex(),
 				color = child:GetColor(),
+				colors = {},
 				children = entityHierarchy(child, route),
 				renderFx = child:GetRenderFX(),
 				renderMode = child:GetRenderMode(),
@@ -255,41 +271,6 @@ local function addChoiceFromRenders(comboBox, renderList)
 		local _, renderVal = next(val)
 		comboBox:AddChoice(key, renderVal)
 	end
-end
-
----Construct a flat array of the entity's descendant colors
----@param entity Entity
----@param tbl Color[]
----@return Color[]
-local function getColorChildrenIdentifier(entity, tbl)
-	if not IsValid(entity) then
-		return {}
-	end
-
-	local children = getValidModelChildren(entity)
-	for _, child in ipairs(children) do
-		table.insert(tbl, child:GetColor())
-		getColorChildrenIdentifier(child, tbl)
-	end
-
-	return tbl
-end
-
----Check if every descendant's color is equal to some other descendant color
----@param t1 Color[]
----@param t2 Color[]
-local function isColorChildrenEqual(t1, t2)
-	if #t1 ~= #t2 then
-		return false
-	end
-
-	for i = 1, #t1 do
-		if t1[i] ~= t2[i] then
-			return false
-		end
-	end
-
-	return true
 end
 
 ---@param str string
@@ -377,6 +358,7 @@ local function buildTree(treePanel, entity)
 	local hierarchy = {
 		entity = entity:EntIndex(),
 		color = entity:GetColor(),
+		colors = {},
 		renderFx = entity:GetRenderFX(),
 		renderMode = entity:GetRenderMode(),
 		children = entityHierarchy(entity, {}),
@@ -390,6 +372,56 @@ local function buildTree(treePanel, entity)
 	hierarchyPanel(hierarchy.children, treePanel.ancestor, hierarchy)
 
 	return hierarchy
+end
+
+---@type colortree_submaterials
+local submaterialFrame = nil
+local ignore = false
+
+---Set the entity for the submaterial frame.
+---
+---~~VENT:~~
+---
+---~~the cringiest thing to exist 🤮🤮🤮, because panels don't update immediately for some reason (need to move the divider to see it happen)
+---so we force it with the worst thing possible: recreating the vgui 🤢~~
+---@param entity Entity
+---@param submaterials table?
+---@param panelChildren ColorPanelChildren
+---@param panelState ColorPanelState
+local function setSubMaterialEntity(entity, submaterials, panelChildren, panelState)
+	if IsValid(submaterialFrame) then
+		submaterialFrame:Remove()
+	end
+
+	submaterialFrame = vgui.Create("colortree_submaterials")
+	submaterialFrame:SetEntity(entity)
+	if submaterials then
+		submaterialFrame:SetSubMaterials(submaterials)
+	end
+
+	-- We'll hook the submaterial frame here for the time being
+	if submaterialFrame and IsValid(submaterialFrame) then
+		function submaterialFrame:OnSelectedMaterial(id)
+			ignore = true
+			local node = panelChildren.treePanel:GetSelectedItem()
+			if node.info.colors[id] then
+				panelChildren.colorPicker.Mixer:SetColor(node.info.colors[id])
+			end
+			ignore = false
+		end
+
+		function submaterialFrame:OnRemovedSubMaterial(id)
+			local node = panelChildren.treePanel:GetSelectedItem()
+			node.info.colors[id] = nil
+			syncTree(panelState.colorTree)
+		end
+
+		function submaterialFrame:OnClearSelection()
+			local node = panelChildren.treePanel:GetSelectedItem()
+			node.info.colors = {}
+			syncTree(panelState.colorTree)
+		end
+	end
 end
 
 ---@param cPanel DForm|ControlPanel
@@ -452,6 +484,10 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	local reset = settings:Button("Reset All Colors", "")
 
 	colorPicker:SetLabel("Color " .. proxySet:GetText())
+
+	if IsValid(submaterialFrame) then
+		submaterialFrame:Remove()
+	end
 
 	return {
 		treePanel = treePanel,
@@ -602,6 +638,10 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 	---@param newColor Color
 	function colorPicker.Mixer:ValueChanged(newColor)
+		if ignore then
+			return
+		end
+
 		local selectedNode = treePanel:GetSelectedItem()
 		if not selectedNode or not IsValid(Entity(selectedNode.info.entity)) then
 			return
@@ -609,7 +649,22 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 		shouldSet = true
 
-		setColor(selectedNode, newColor, propagate:GetChecked())
+		-- Advanced Colors
+		local selected = 0
+		if IsValid(submaterialFrame) then
+			local selectedSubMaterials, submaterialCount = submaterialFrame:GetSelectedSubMaterials()
+			selected = #selectedSubMaterials
+			if submaterialCount == 0 then
+				selectedNode.info.colors = {}
+			end
+			for _, id in ipairs(selectedSubMaterials) do
+				selectedNode.info.colors[id] = newColor
+			end
+		end
+		-- If we want to manipulate the colors but keep the information about the submaterial colors
+		if selected == 0 then
+			setColor(selectedNode, newColor, propagate:GetChecked())
+		end
 
 		local h, s, v = ColorToHSV(newColor)
 		panelState.haloColor = HSVToColor(math.abs(h - 180), s, v)
@@ -618,7 +673,13 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 	---@param node ColorTreePanel_Node
 	function treePanel:OnNodeSelected(node)
-		panelState.haloedEntity = Entity(node.info.entity)
+		local entity = Entity(node.info.entity)
+		---@cast entity Colorable
+
+		if isfunction(entity.SetSubColor) then
+			setSubMaterialEntity(entity, table.GetKeys(node.info.colors), panelChildren, panelState)
+		end
+		panelState.haloedEntity = entity
 	end
 
 	---If we are moving a `DNumSlider` or a `DColorMixer`, we are editing.
@@ -633,8 +694,28 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		return false
 	end
 
+	hook.Remove("OnContextMenuOpen", "colortree_hookcontext")
+	hook.Add("OnContextMenuOpen", "colortree_hookcontext", function()
+		local tool = LocalPlayer():GetTool()
+		-- Advanced Colors
+		if IsValid(submaterialFrame) and tool and tool.Mode == "colortree" then
+			submaterialFrame:SetVisible(true)
+			submaterialFrame:MakePopup()
+		end
+	end)
+
+	hook.Remove("OnContextMenuClose", "colortree_hookcontext")
+	hook.Add("OnContextMenuClose", "colortree_hookcontext", function()
+		-- Advanced Colors
+		if IsValid(submaterialFrame) then
+			submaterialFrame:SetVisible(false)
+			submaterialFrame:SetMouseInputEnabled(false)
+			submaterialFrame:SetKeyboardInputEnabled(false)
+		end
+	end)
+
 	local lastThink = CurTime()
-	local lastColor = {}
+	local lastColorChange = 0
 	timer.Remove("colortree_think")
 	timer.Create("colortree_think", 0, -1, function()
 		local now = CurTime()
@@ -651,11 +732,31 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			return
 		end
 
-		local currentColor = getColorChildrenIdentifier(colorable, {})
+		-- Don't check color children until we are done editing the colors
+		if editing then
+			return
+		end
 
-		if not isColorChildrenEqual(lastColor, currentColor) then
+		if not IsValid(colorable) then
+			return
+		end
+
+		local currentColorChange = colorable.LastColorChange
+
+		-- Colors changed? Update the color picker to indicate this
+		if currentColorChange ~= lastColorChange then
 			refreshTree(panelState.colorTree)
-			lastColor = currentColor
+			ignore = true
+
+			if IsValid(submaterialFrame) then
+				local selected, subcount = submaterialFrame:GetSelectedSubMaterials()
+				for _, id in ipairs(selected) do
+					colorPicker.Mixer:SetColor(colorable._adv_colours[id])
+				end
+			end
+
+			ignore = false
+			lastColorChange = currentColorChange
 		end
 	end)
 	timer.Start("colortree_think")
