@@ -393,11 +393,14 @@ local ignore = false
 ---@param panelChildren ColorPanelChildren
 ---@param panelState ColorPanelState
 local function setSubMaterialEntity(entity, submaterials, panelChildren, panelState)
+	local lastVisible = false
 	if IsValid(submaterialFrame) then
+		lastVisible = submaterialFrame:IsVisible()
 		submaterialFrame:Remove()
 	end
 
 	submaterialFrame = vgui.Create("colortree_submaterials")
+	submaterialFrame:SetVisible(lastVisible)
 	submaterialFrame:SetEntity(entity)
 	if submaterials then
 		submaterialFrame:SetSubMaterials(submaterials)
@@ -673,9 +676,10 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			setColor(selectedNode, newColor, propagate:GetChecked())
 		end
 
-		local h, s, v = ColorToHSV(newColor)
-		panelState.haloColor = HSVToColor(math.abs(h - 180), s, v)
 		setColorClient(panelState.colorTree)
+
+		local h, s, v = ColorToHSV(newColor or color_white)
+		panelState.haloColor = HSVToColor(math.abs(h - 180), s, v)
 	end
 
 	---@param node ColorTreePanel_Node
@@ -686,7 +690,23 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		if isfunction(entity.SetSubColor) then
 			setSubMaterialEntity(entity, table.GetKeys(node.info.colors), panelChildren, panelState)
 		end
+		ignore = true
+		colorPicker.Mixer:SetColor(entity:GetColor())
+		ignore = false
+
+		refreshTree(node.info)
+
 		panelState.haloedEntity = entity
+	end
+
+	-- Initialize with our selection
+	if IsValid(treePanel) and IsValid(treePanel.ancestor) then
+		treePanel:SetSelectedItem(treePanel.ancestor)
+		-- FIXME: Creates the submaterial frame twice. Could we circumvent this?
+		if IsValid(submaterialFrame) then
+			setSubMaterialEntity(colorable, table.GetKeys(colorable._adv_colours), panelChildren, panelState)
+		end
+		refreshTree(panelState.colorTree)
 	end
 
 	---If we are moving a `DNumSlider` or a `DColorMixer`, we are editing.
