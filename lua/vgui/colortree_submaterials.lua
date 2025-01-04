@@ -183,8 +183,11 @@ function PANEL:ClearSelection()
 	self.Selection.PreviewIcon:SetTall(self.Selection.PreviewIcon:GetWide())
 	self.Selection.PreviewIcon:SetVisible(false)
 	self.Selection.PreviewIcon:Dock(TOP)
+	self:OnClearSelection()
 	self:RefreshSelection()
 end
+
+function PANEL:OnClearSelection() end
 
 ---Refill the material list with the currently selected submaterials
 function PANEL:RefreshSelection()

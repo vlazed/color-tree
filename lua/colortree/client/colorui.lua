@@ -415,6 +415,12 @@ local function setSubMaterialEntity(entity, submaterials, panelChildren, panelSt
 			node.info.colors[id] = nil
 			syncTree(panelState.colorTree)
 		end
+
+		function submaterialFrame:OnClearSelection()
+			local node = panelChildren.treePanel:GetSelectedItem()
+			node.info.colors = {}
+			syncTree(panelState.colorTree)
+		end
 	end
 end
 
