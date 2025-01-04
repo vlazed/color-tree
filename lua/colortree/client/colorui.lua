@@ -679,7 +679,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 		setColorClient(panelState.colorTree)
 
-		local h, s, v = ColorToHSV(newColor or color_white)
+		local h, s, v = ColorToHSV(newColor)
 		panelState.haloColor = HSVToColor(math.abs(h - 180), s, v)
 	end
 
@@ -779,7 +779,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			if IsValid(submaterialFrame) then
 				local selected, subcount = submaterialFrame:GetSelectedSubMaterials()
 				for _, id in ipairs(selected) do
-					colorPicker.Mixer:SetColor(colorable._adv_colours[id])
+					colorPicker.Mixer:SetColor(colorable._adv_colours[id] or color_white)
 				end
 			end
 
