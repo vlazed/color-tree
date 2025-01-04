@@ -10,6 +10,9 @@ local getValidModelChildren, encodeData = helpers.getValidModelChildren, helpers
 
 local ui = {}
 
+---@type colortree_submaterials
+local submaterialFrame = nil
+
 local function getBoolOrFloatConVar(convar, isBool)
 	return GetConVar(convar) and Either(isBool, GetConVar(convar):GetBool(), GetConVar(convar):GetFloat())
 end
@@ -199,6 +202,9 @@ local function addNode(parent, entity, info, rootInfo)
 		local menu = DermaMenu()
 		if node.info.proxyColor then
 			menu:AddOption("Reset All", function()
+				if IsValid(submaterialFrame) then
+					submaterialFrame:ClearSelection()
+				end
 				resetTree(info)
 				syncTree(rootInfo)
 			end)
@@ -374,8 +380,6 @@ local function buildTree(treePanel, entity)
 	return hierarchy
 end
 
----@type colortree_submaterials
-local submaterialFrame = nil
 local ignore = false
 
 ---Set the entity for the submaterial frame.
@@ -521,6 +525,9 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local reset = panelChildren.reset
 
 	function reset:DoClick()
+		if IsValid(submaterialFrame) then
+			submaterialFrame:ClearSelection()
+		end
 		resetTree(panelState.colorTree)
 		syncTree(panelState.colorTree)
 	end
