@@ -112,7 +112,7 @@ function TOOL:RightClick(tr)
 end
 
 if SERVER then
-	---Set the colors of the entity by default or throuregh material proxy
+	---Set the colors of the entity by default or through material proxy
 	---@param ply Player
 	---@param ent Colorable|Entity
 	---@param data ColorTreeData
@@ -123,6 +123,11 @@ if SERVER then
 
 		-- Advanced Colour Tool Condition
 		if isAdvancedColorsInstalled(ent) then
+			if not ent._adv_colours then
+				---@diagnostic disable-next-line
+				ent:SetSubColor(0, nil)
+			end
+
 			for id, color in pairs(data.colortree_colors) do
 				-- Only update the color when its different
 				if ent._adv_colours[id] ~= Color(color.r, color.g, color.b, color.a) then
