@@ -23,17 +23,21 @@ do -- Keep track of the last time the (sub)colors of an entity or its children h
 		meta.colortree_oldSetColor = meta.SetColor
 	end
 
-	--- Propagate the changed color event to the ancestral entity
-	local function updateColor(entity)
-		if IsValid(entity) then
-			net.Start("colortree_update", true)
-			net.WriteEntity(entity)
-			net.WriteFloat(CurTime())
-			net.Broadcast()
-		end
+	---Propagate the changed color event to the ancestral entity
+	---@param entity Entity
+	---@param id integer?
+	local function updateColor(entity, id)
+		net.Start("colortree_update", true)
+		net.WriteEntity(entity)
+		net.WriteFloat(CurTime())
+		net.Broadcast()
 	end
 
 	function meta:SetColor(newColor, ...)
+		if not newColor then
+			return self:colortree_oldSetColor(newColor)
+		end
+
 		local root = self
 		while root:GetParent() ~= NULL do
 			root = self:GetParent()
@@ -59,7 +63,7 @@ do -- Keep track of the last time the (sub)colors of an entity or its children h
 				end
 
 				if SERVER then
-					updateColor(root)
+					updateColor(root, ind)
 				end
 
 				---INFO: No need to check nil if we did so earlier
@@ -120,20 +124,26 @@ if SERVER then
 		-- Advanced Colour Tool Condition
 		if isAdvancedColorsInstalled(ent) then
 			for id, color in pairs(data.colortree_colors) do
-				---@diagnostic disable-next-line
-				ent:SetSubColor(id, Color(color.r, color.g, color.b, color.a))
+				-- Only update the color when its different
+				if ent._adv_colours[id] ~= Color(color.r, color.g, color.b, color.a) then
+					---@diagnostic disable-next-line
+					ent:SetSubColor(id, Color(color.r, color.g, color.b, color.a))
+				end
 			end
 
 			local mats = ent:GetMaterials()
 			for id = 0, #mats - 1 do
-				if not data.colortree_colors[id - 1] then
+				-- Color exists but we're resetting?
+				if not data.colortree_colors[id] and ent._adv_colours[id] then
 					---@diagnostic disable-next-line
-					ent:SetSubColor(id - 1, nil)
+					ent:SetSubColor(id, nil)
 				end
 			end
 		end
 
-		ent:SetColor(data.colortree_color)
+		if ent:GetColor() ~= data.colortree_color then
+			ent:SetColor(data.colortree_color)
+		end
 		ent:SetRenderMode(data.colortree_renderMode)
 		ent:SetRenderFX(data.colortree_renderFx)
 		if data.colortree_color.a < 255 then
@@ -190,7 +200,7 @@ if SERVER then
 	---@returns ColorTreeData
 	local function getColorTreeData(node)
 		return {
-			colortree_color = node.color,
+			colortree_color = Color(node.color.r, node.color.g, node.color.b, node.color.a),
 			colortree_colors = node.colors,
 			colortree_renderMode = node.renderMode,
 			colortree_renderFx = node.renderFx,
