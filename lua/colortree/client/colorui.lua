@@ -710,10 +710,41 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		refreshTree(panelState.colorTree)
 	end
 
+	---@param panel DPanel
+	local function overrideMousePressed(panel)
+		local oldPressed = panel.OnMousePressed
+		function panel:OnMousePressed(mcode)
+			oldPressed(self, mcode)
+			self.dragging = true
+		end
+
+		local oldReleased = panel.OnMouseReleased
+		function panel:OnMouseReleased(mcode)
+			oldReleased(self, mcode)
+			self.dragging = false
+		end
+
+		function panel:IsEditing()
+			return self.dragging
+		end
+	end
+
+	-- The alpha and RGB bars don't have an IsEditing function, so we have to override them
+	overrideMousePressed(colorPicker.Mixer.Alpha)
+	overrideMousePressed(colorPicker.Mixer.RGB)
+
 	---If we are moving a `DNumSlider` or a `DColorMixer`, we are editing.
 	---@param editors Panel[]|DNumSlider[]
 	---@return boolean
 	local function checkEditing(editors)
+		if
+			colorPicker.Mixer.HSV:IsEditing()
+			or colorPicker.Mixer.Alpha:IsEditing()
+			or colorPicker.Mixer.RGB:IsEditing()
+		then
+			return true
+		end
+
 		for _, editor in ipairs(editors) do
 			if editor:IsEditing() then
 				return true
@@ -747,7 +778,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	timer.Remove("colortree_think")
 	timer.Create("colortree_think", 0, -1, function()
 		local now = CurTime()
-		local editing = colorPicker.Mixer.HSV:IsEditing() or checkEditing(dermaEditors)
+		local editing = checkEditing(dermaEditors)
 		if now - lastThink > 0.1 and shouldSet and not editing then
 			syncTree(panelState.colorTree)
 			lastThink = now
@@ -777,9 +808,13 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			ignore = true
 
 			if IsValid(submaterialFrame) then
+				local selectedNode = treePanel:GetSelectedItem()
+				local entity = Entity(selectedNode.info.entity)
+				---@cast entity Colorable
+
 				local selected, subcount = submaterialFrame:GetSelectedSubMaterials()
 				for _, id in ipairs(selected) do
-					colorPicker.Mixer:SetColor(colorable._adv_colours[id] or color_white)
+					colorPicker.Mixer:SetColor(entity._adv_colours[id] or color_white)
 				end
 			end
 

@@ -138,9 +138,14 @@
 
 ---END TODO
 
+---@class ColorSlider: DPanel
+---@field IsEditing fun(self: ColorSlider): editing: boolean
+
 ---Wrapper for `DColorMixer`
 ---@class ColorTreeMixer: DColorMixer
 ---@field HSV DSlider
+---@field RGB ColorSlider
+---@field Alpha ColorSlider
 
 ---Wrapper for `CtrlColor`
 ---@class ColorTreePicker: Panel
