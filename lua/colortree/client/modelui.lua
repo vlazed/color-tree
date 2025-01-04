@@ -32,6 +32,10 @@ end
 ---@return string
 local function getBodygroups(ent)
 	local bodygroups = ""
+	if ent:GetNumBodyGroups() == 0 then
+		return bodygroups
+	end
+
 	for i = 0, ent:GetNumBodyGroups() do
 		bodygroups = bodygroups .. tostring(ent:GetBodygroup(i))
 	end
@@ -459,7 +463,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 		modelEntry:SetValue(node.info.model)
 		panelState.haloedEntity = Entity(node.info.entity)
-		dermaEditors = resetModelSettings(modelForm, panelState.modelTree)
+		dermaEditors = resetModelSettings(modelForm, node.info)
 
 		settingModelEntry = false
 	end
