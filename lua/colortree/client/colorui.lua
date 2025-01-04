@@ -6,7 +6,8 @@ local proxyConVarMap = include("colortree/client/proxyConVars.lua")
 local pt = include("colortree/shared/proxyTransformers.lua")
 local proxyTransformers = pt.proxyTransformers
 
-local getValidModelChildren, encodeData = helpers.getValidModelChildren, helpers.encodeData
+local getValidModelChildren, encodeData, isAdvancedColorsInstalled =
+	helpers.getValidModelChildren, helpers.encodeData, helpers.isAdvancedColorsInstalled
 
 local ui = {}
 
@@ -687,7 +688,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		local entity = Entity(node.info.entity)
 		---@cast entity Colorable
 
-		if isfunction(entity.SetSubColor) then
+		if isAdvancedColorsInstalled(entity) then
 			setSubMaterialEntity(entity, table.GetKeys(node.info.colors), panelChildren, panelState)
 		end
 		ignore = true
@@ -703,8 +704,8 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	if IsValid(treePanel) and IsValid(treePanel.ancestor) then
 		treePanel:SetSelectedItem(treePanel.ancestor)
 		-- FIXME: Creates the submaterial frame twice. Could we circumvent this?
-		if IsValid(submaterialFrame) then
-			setSubMaterialEntity(colorable, table.GetKeys(colorable._adv_colours), panelChildren, panelState)
+		if isAdvancedColorsInstalled(colorable) then
+			setSubMaterialEntity(colorable, table.GetKeys(colorable._adv_colours or {}), panelChildren, panelState)
 		end
 		refreshTree(panelState.colorTree)
 	end
