@@ -455,7 +455,9 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 
 	local colorForm = makeCategory(cPanel, "Color", "ControlPanel")
 	colorForm:Help("#tool.colortree.color")
-	local colorPicker = colorForm:ColorPicker("Color", "colour_r", "colour_g", "colour_b", "colour_a")
+	---INFO: ColorPicker also accepts no convars.
+	---@diagnostic disable-next-line
+	local colorPicker = colorForm:ColorPicker("Color")
 	---@cast colorPicker ColorTreePicker
 	local renderMode = colorForm:ComboBox("Render Mode", "")
 	local renderFx = colorForm:ComboBox("Render FX", "")
