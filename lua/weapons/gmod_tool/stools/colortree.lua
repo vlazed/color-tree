@@ -116,7 +116,9 @@ function TOOL:RightClick(tr)
 	self:SetColorable(IsValid(tr.Entity) and tr.Entity or NULL)
 	if IsValid(tr.Entity) then
 		tr.Entity:CallOnRemove("colortree_removeentity", function()
-			self:SetColorable(NULL)
+			if IsValid(self:GetWeapon()) then
+				self:SetColorable(NULL)
+			end
 		end)
 	end
 	return true
