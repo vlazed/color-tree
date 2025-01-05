@@ -75,22 +75,26 @@ do -- Keep track of the last time the (sub)colors of an entity or its children h
 end
 
 local lastColorable = NULL
+local lastValidColorable = false
 function TOOL:Think()
 	local currentColorable = self:GetColorable()
-	if currentColorable == NULL then
+	local validColorable = IsValid(currentColorable)
+
+	if currentColorable == lastColorable and validColorable == lastValidColorable then
+		return
+	end
+
+	if not validColorable then
 		self:SetOperation(0)
 	else
 		self:SetOperation(1)
-	end
-
-	if currentColorable == lastColorable then
-		return
 	end
 
 	if CLIENT then
 		self:RebuildControlPanel(currentColorable)
 	end
 	lastColorable = currentColorable
+	lastValidColorable = validColorable
 end
 
 ---@param newColorable Colorable|Entity
@@ -108,6 +112,11 @@ end
 ---@return boolean
 function TOOL:RightClick(tr)
 	self:SetColorable(IsValid(tr.Entity) and tr.Entity or NULL)
+	if IsValid(tr.Entity) then
+		tr.Entity:CallOnRemove("colortree_removeentity", function()
+			self:SetColorable(NULL)
+		end)
+	end
 	return true
 end
 
@@ -273,6 +282,8 @@ hook.Add("PreDrawHalos", "colortree_halos", function()
 end)
 
 TOOL.Information = {
-	{ name = "info", operation = 0 },
-	{ name = "right", operation = 0 },
+	{ name = "info.0", op = 0 },
+	{ name = "info.1", op = 1 },
+	{ name = "right.0", op = 0 },
+	{ name = "right.1", op = 1 },
 }
