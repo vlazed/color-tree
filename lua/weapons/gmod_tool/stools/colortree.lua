@@ -7,6 +7,9 @@ TOOL.ClientConVar["proxy"] = ""
 TOOL.ClientConVar["lock"] = 0
 TOOL.ClientConVar["propagate"] = 0
 
+local CHANGE_BITS = 7
+local TIME_PRECISION = 10
+
 ---@module "colortree.shared.helpers"
 local helpers = include("colortree/shared/helpers.lua")
 ---@module "colortree.shared.proxyTransformers"
@@ -25,11 +28,10 @@ do -- Keep track of the last time the (sub)colors of an entity or its children h
 
 	---Propagate the changed color event to the ancestral entity
 	---@param entity Entity
-	---@param id integer?
-	local function updateColor(entity, id)
+	local function updateColor(entity)
 		net.Start("colortree_update", true)
 		net.WriteEntity(entity)
-		net.WriteFloat(CurTime())
+		net.WriteUInt(CurTime() * TIME_PRECISION, CHANGE_BITS)
 		net.Broadcast()
 	end
 
@@ -63,7 +65,7 @@ do -- Keep track of the last time the (sub)colors of an entity or its children h
 				end
 
 				if SERVER then
-					updateColor(root, ind)
+					updateColor(root)
 				end
 
 				---INFO: No need to check nil if we did so earlier
@@ -252,7 +254,7 @@ if SERVER then
 else
 	net.Receive("colortree_update", function(_, _)
 		local entity = net.ReadEntity()
-		entity.LastColorChange = net.ReadFloat()
+		entity.LastColorChange = net.ReadUInt(CHANGE_BITS)
 	end)
 end
 

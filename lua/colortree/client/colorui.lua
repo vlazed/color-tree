@@ -774,7 +774,9 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	end)
 
 	local lastThink = CurTime()
-	local lastColorChange = 0
+	-- ENT.LastColorChange is always at least 0. We set it to -1 to ensure that we will always
+	-- refresh the tree at the start
+	local lastColorChange = -1
 	timer.Remove("colortree_think")
 	timer.Create("colortree_think", 0, -1, function()
 		local now = CurTime()
