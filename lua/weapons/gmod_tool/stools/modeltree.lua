@@ -200,9 +200,6 @@ if SERVER then
 
 		setModel(ply, Entity(tree.entity), getModelTreeData(tree))
 		setModelWithTree(tree, ply)
-
-		net.Start("modeltree_sync")
-		net.Send(ply)
 	end)
 
 	return
