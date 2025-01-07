@@ -7,6 +7,9 @@ TOOL.ClientConVar["proxy"] = ""
 TOOL.ClientConVar["lock"] = 0
 TOOL.ClientConVar["propagate"] = 0
 
+local CHANGE_BITS = 7
+local TIME_PRECISION = 10
+
 ---@module "colortree.shared.helpers"
 local helpers = include("colortree/shared/helpers.lua")
 ---@module "colortree.shared.proxyTransformers"
@@ -14,25 +17,86 @@ local pt = include("colortree/shared/proxyTransformers.lua")
 
 local cloakProxies, glowProxies, proxyTransformers = pt.cloakProxies, pt.glowProxies, pt.proxyTransformers
 
-local decodeData = helpers.decodeData
+local decodeData, isAdvancedColorsInstalled = helpers.decodeData, helpers.isAdvancedColorsInstalled
+
+do -- Keep track of the last time the (sub)colors of an entity or its children has changed
+	---@class Colorable
+	local meta = FindMetaTable("Entity")
+	if meta.colortree_oldSetColor == nil then
+		meta.colortree_oldSetColor = meta.SetColor
+	end
+
+	---Propagate the changed color event to the ancestral entity
+	---@param entity Entity
+	local function updateColor(entity)
+		net.Start("colortree_update", true)
+		net.WriteEntity(entity)
+		net.WriteUInt(CurTime() * TIME_PRECISION, CHANGE_BITS)
+		net.Broadcast()
+	end
+
+	function meta:SetColor(newColor, ...)
+		if not newColor then
+			return self:colortree_oldSetColor(newColor)
+		end
+
+		local root = self
+		while root:GetParent() ~= NULL do
+			root = self:GetParent()
+		end
+
+		if SERVER then
+			updateColor(root)
+		end
+
+		return self:colortree_oldSetColor(newColor, ...)
+	end
+
+	-- FIXME: Using a timer to bypass load order restrictions is messy. What alternative exists?
+	timer.Simple(0, function()
+		if meta.SetSubColor then
+			if meta.colortree_oldSetSubColor == nil then
+				meta.colortree_oldSetSubColor = meta.SetSubColor
+			end
+			function meta:SetSubColor(ind, newColor)
+				local root = self
+				while root:GetParent() ~= NULL do
+					root = self:GetParent()
+				end
+
+				if SERVER then
+					updateColor(root)
+				end
+
+				---INFO: No need to check nil if we did so earlier
+				---@diagnostic disable-next-line
+				return self:colortree_oldSetSubColor(ind, newColor)
+			end
+		end
+	end)
+end
 
 local lastColorable = NULL
+local lastValidColorable = false
 function TOOL:Think()
 	local currentColorable = self:GetColorable()
-	if currentColorable == NULL then
+	local validColorable = IsValid(currentColorable)
+
+	if currentColorable == lastColorable and validColorable == lastValidColorable then
+		return
+	end
+
+	if not validColorable then
 		self:SetOperation(0)
 	else
 		self:SetOperation(1)
-	end
-
-	if currentColorable == lastColorable then
-		return
 	end
 
 	if CLIENT then
 		self:RebuildControlPanel(currentColorable)
 	end
 	lastColorable = currentColorable
+	lastValidColorable = validColorable
 end
 
 ---@param newColorable Colorable|Entity
@@ -50,11 +114,18 @@ end
 ---@return boolean
 function TOOL:RightClick(tr)
 	self:SetColorable(IsValid(tr.Entity) and tr.Entity or NULL)
+	if IsValid(tr.Entity) then
+		tr.Entity:CallOnRemove("colortree_removeentity", function()
+			if IsValid(self:GetWeapon()) then
+				self:SetColorable(NULL)
+			end
+		end)
+	end
 	return true
 end
 
 if SERVER then
-	---Set the colors of the entity by default or throuregh material proxy
+	---Set the colors of the entity by default or through material proxy
 	---@param ply Player
 	---@param ent Colorable|Entity
 	---@param data ColorTreeData
@@ -62,12 +133,41 @@ if SERVER then
 		if IsValid(ply) then
 			ent.colortree_owner = ply
 		end
-		ent:SetColor(data.colortree_color)
+
+		-- Advanced Colour Tool Condition
+		if isAdvancedColorsInstalled(ent) then
+			if not ent._adv_colours then
+				---@diagnostic disable-next-line
+				ent:SetSubColor(0, nil)
+			end
+
+			for id, color in pairs(data.colortree_colors) do
+				-- Only update the color when its different
+				if ent._adv_colours[id] ~= Color(color.r, color.g, color.b, color.a) then
+					---@diagnostic disable-next-line
+					ent:SetSubColor(id, Color(color.r, color.g, color.b, color.a))
+				end
+			end
+
+			local mats = ent:GetMaterials()
+			for id = 0, #mats - 1 do
+				-- Color exists but we're resetting?
+				if not data.colortree_colors[id] and ent._adv_colours[id] then
+					---@diagnostic disable-next-line
+					ent:SetSubColor(id, nil)
+				end
+			end
+		end
+
+		if ent:GetColor() ~= data.colortree_color then
+			ent:SetColor(data.colortree_color)
+		end
 		ent:SetRenderMode(data.colortree_renderMode)
 		ent:SetRenderFX(data.colortree_renderFx)
 		if data.colortree_color.a < 255 then
 			ent:SetRenderMode(RENDERMODE_TRANSCOLOR)
 		end
+
 		if data.colortree_proxyColor then
 			local hasCloak = false
 			local hasGlow = false
@@ -109,6 +209,7 @@ if SERVER then
 			end
 		end
 
+		duplicator.ClearEntityModifier(ent, "colortree")
 		duplicator.StoreEntityModifier(ent, "colortree", data)
 	end
 
@@ -117,7 +218,8 @@ if SERVER then
 	---@returns ColorTreeData
 	local function getColorTreeData(node)
 		return {
-			colortree_color = node.color,
+			colortree_color = Color(node.color.r, node.color.g, node.color.b, node.color.a),
+			colortree_colors = node.colors,
 			colortree_renderMode = node.renderMode,
 			colortree_renderFx = node.renderFx,
 			colortree_proxyColor = node.proxyColor,
@@ -151,6 +253,11 @@ if SERVER then
 	end)
 
 	return
+else
+	net.Receive("colortree_update", function(_, _)
+		local entity = net.ReadEntity()
+		entity.LastColorChange = net.ReadUInt(CHANGE_BITS)
+	end)
 end
 
 ---@module "colortree.client.colorui"
@@ -179,6 +286,8 @@ hook.Add("PreDrawHalos", "colortree_halos", function()
 end)
 
 TOOL.Information = {
-	{ name = "info", operation = 0 },
-	{ name = "right", operation = 0 },
+	{ name = "info.0", op = 0 },
+	{ name = "info.1", op = 1 },
+	{ name = "right.0", op = 0 },
+	{ name = "right.1", op = 1 },
 }

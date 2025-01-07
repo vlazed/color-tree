@@ -41,4 +41,10 @@ function helpers.decodeData(data)
 	return util.JSONToTable(util.Decompress(data))
 end
 
+---@param ent Colorable|Entity
+---@return boolean
+function helpers.isAdvancedColorsInstalled(ent)
+	return isfunction(ent.SetSubColor)
+end
+
 return helpers
