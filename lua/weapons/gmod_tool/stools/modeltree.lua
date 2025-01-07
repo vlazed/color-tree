@@ -153,7 +153,9 @@ if SERVER then
 			modeltree_model = node.model,
 			modeltree_defaultmodel = node.defaultModel,
 			modeltree_skin = node.skin,
+			modeltree_defaultskin = node.defaultSkin,
 			modeltree_bodygroups = node.bodygroups,
+			modeltree_defaultbodygroups = node.defaultBodygroups,
 		}
 	end
 

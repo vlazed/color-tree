@@ -42,6 +42,8 @@ local function getBodygroups(ent)
 	return bodygroups
 end
 
+---@param entity Entity
+---@return table
 local function getModelDefaults(entity)
 	local csModel = ClientsideModel(entity:GetModel())
 	local defaultProps = {
@@ -203,19 +205,20 @@ local function entityHierarchy(parent, route)
 	for i, child in ipairs(children) do
 		if child.GetModel and child:GetModel() ~= "models/error.mdl" then
 			table.insert(route, 1, i)
+			local defaultProps = getModelDefaults(child)
+
 			---@type ModelTree
 			local node = {
 				parent = parent:EntIndex(),
 				route = route,
 				entity = child:EntIndex(),
 				model = child:GetModel(),
-				defaultModel = child:GetModel(),
-				defaultSkin = child:GetSkin(),
-				defaultBodygroups = getBodygroups(child),
+				defaultModel = defaultProps.defaultModel,
+				defaultSkin = defaultProps.defaultSkin,
+				defaultBodygroups = defaultProps.defaultBodygroups,
 				children = entityHierarchy(child, route),
 				skin = child:GetRenderFX(),
 				bodygroups = getBodygroups(child),
-				bodygroupData = child:GetBodyGroups(),
 			}
 			table.insert(tree, node)
 			route = {}
@@ -264,7 +267,6 @@ local function buildTree(treePanel, entity)
 		defaultModel = defaultProps.defaultModel,
 		defaultSkin = defaultProps.defaultSkin,
 		defaultBodygroups = defaultProps.defaultBodygroups,
-		bodygroupData = entity:GetBodyGroups(),
 		children = entityHierarchy(entity, {}),
 	}
 

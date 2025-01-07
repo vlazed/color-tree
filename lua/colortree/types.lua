@@ -48,7 +48,6 @@
 ---@class ModelEntity: Entity
 ---@field LastModelChange number
 ---@field GetParent fun(self: ModelEntity): parent: ModelEntity
----@field modelTree_ table?
 
 ---Dupe data for color trees
 ---@class ColorTreeData
@@ -87,7 +86,6 @@
 ---@field defaultSkin Skin
 ---@field defaultBodygroups Bodygroups
 ---@field bodygroups Bodygroups
----@field bodygroupData BodyGroupData[]
 ---@field skin Skin
 ---@field children ModelTree[]
 
