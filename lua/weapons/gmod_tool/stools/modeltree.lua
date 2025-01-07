@@ -5,28 +5,100 @@ TOOL.ConfigName = ""
 
 TOOL.ClientConVar["lock"] = 0
 
+local CHANGE_BITS = 7
+local TIME_PRECISION = 10
+
 ---@module "colortree.shared.helpers"
 local helpers = include("colortree/shared/helpers.lua")
 
-local decodeData = helpers.decodeData
+local decodeData, getAncestor = helpers.decodeData, helpers.getAncestor
+
+do -- Keep track of the last time the skin, bodygroups, or model of an entity or its children has changed
+	---@class ModelEntity
+	local meta = FindMetaTable("Entity")
+	if meta.modeltree_oldSetModel == nil then
+		meta.modeltree_oldSetModel = meta.SetModel
+	end
+	if meta.modeltree_oldSetBodyGroups == nil then
+		meta.modeltree_oldSetBodyGroups = meta.SetBodyGroups
+	end
+	if meta.modeltree_oldSetSkin == nil then
+		meta.modeltree_oldSetSkin = meta.SetSkin
+	end
+
+	---Propagate the changed model event to the ancestral entity
+	---@param entity Entity
+	local function updateModel(entity)
+		net.Start("modeltree_update", true)
+		net.WriteEntity(entity)
+		net.WriteUInt(CurTime() * TIME_PRECISION, CHANGE_BITS)
+		net.Broadcast()
+	end
+
+	function meta:SetModel(newModel, ...)
+		if not newModel then
+			return self:modeltree_oldSetModel(newModel, ...)
+		end
+
+		local root = getAncestor(self)
+
+		if SERVER then
+			updateModel(root)
+		end
+
+		return self:modeltree_oldSetModel(newModel, ...)
+	end
+
+	function meta:SetBodyGroups(newBodygroups, ...)
+		if not newBodygroups then
+			return self:modeltree_oldSetBodyGroups(newBodygroups, ...)
+		end
+
+		local root = getAncestor(self)
+
+		if SERVER then
+			updateModel(root)
+		end
+
+		return self:modeltree_oldSetBodyGroups(newBodygroups, ...)
+	end
+
+	function meta:SetSkin(newSkin, ...)
+		if not newSkin then
+			return self:modeltree_oldSetSkin(newSkin, ...)
+		end
+
+		local root = getAncestor(self)
+
+		if SERVER then
+			updateModel(root)
+		end
+
+		return self:modeltree_oldSetSkin(newSkin, ...)
+	end
+end
 
 local lastModelEntity = NULL
+local lastValidModel = false
 function TOOL:Think()
 	local currentModelEntity = self:GetModelEntity()
-	if currentModelEntity == NULL then
+	local validModel = IsValid(currentModelEntity)
+
+	if currentModelEntity == lastModelEntity and validModel == lastValidModel then
+		return
+	end
+
+	if not validModel then
 		self:SetOperation(0)
 	else
 		self:SetOperation(1)
-	end
-
-	if currentModelEntity == lastModelEntity then
-		return
 	end
 
 	if CLIENT then
 		self:RebuildControlPanel(currentModelEntity)
 	end
 	lastModelEntity = currentModelEntity
+	lastValidModel = validModel
 end
 
 ---@param newModelEntity Entity
@@ -44,6 +116,13 @@ end
 ---@return boolean
 function TOOL:RightClick(tr)
 	self:SetModelEntity(IsValid(tr.Entity) and tr.Entity or NULL)
+	if IsValid(tr.Entity) then
+		tr.Entity:CallOnRemove("colortree_removeentity", function()
+			if IsValid(self:GetWeapon()) then
+				self:SetModelEntity(NULL)
+			end
+		end)
+	end
 	return true
 end
 
@@ -121,9 +200,17 @@ if SERVER then
 
 		setModel(ply, Entity(tree.entity), getModelTreeData(tree))
 		setModelWithTree(tree, ply)
+
+		net.Start("modeltree_sync")
+		net.Send(ply)
 	end)
 
 	return
+else
+	net.Receive("modeltree_update", function(_, _)
+		local entity = net.ReadEntity()
+		entity.LastModelChange = net.ReadUInt(CHANGE_BITS)
+	end)
 end
 
 ---@module "colortree.client.modelui"
@@ -136,7 +223,7 @@ local panelState = {
 }
 
 ---@param cPanel ControlPanel|DForm
----@param modelEntity Entity
+---@param modelEntity ModelEntity
 function TOOL.BuildCPanel(cPanel, modelEntity)
 	local panelChildren = ui.ConstructPanel(cPanel, { modelEntity = modelEntity }, panelState)
 	ui.HookPanel(panelChildren, { modelEntity = modelEntity }, panelState)
@@ -152,6 +239,8 @@ hook.Add("PreDrawHalos", "modeltree_halos", function()
 end)
 
 TOOL.Information = {
-	{ name = "info", operation = 0 },
-	{ name = "right", operation = 0 },
+	{ name = "info.0", op = 0 },
+	{ name = "info.1", op = 1 },
+	{ name = "right.0", op = 0 },
+	{ name = "right.1", op = 1 },
 }

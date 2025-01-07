@@ -86,7 +86,7 @@ local function getModelName(entity)
 	return mdl
 end
 
-local skins = {}
+local modelSkins = {}
 
 ---Grab the entity's model icon
 ---@source https://github.com/NO-LOAFING/AdvBonemerge/blob/371b790d00d9bcbb62845ce8785fc6b98fbe8ef4/lua/weapons/gmod_tool/stools/advbonemerge.lua#L1079
@@ -98,8 +98,8 @@ local function getModelNodeIconPath(ent, model, skin)
 	skin = skin or ent:GetSkin() or 0
 	model = model or ent:GetModel()
 
-	if skins[model .. skin] then
-		return skins[model .. skin]
+	if modelSkins[model .. skin] then
+		return modelSkins[model .. skin]
 	end
 
 	local modelicon = "spawnicons/" .. string.StripExtension(model) .. ".png"
@@ -111,7 +111,7 @@ local function getModelNodeIconPath(ent, model, skin)
 	if not file.Exists("materials/" .. modelicon, "GAME") then
 		modelicon = fallback
 	else
-		skins[model .. skin] = modelicon
+		modelSkins[model .. skin] = modelicon
 	end
 
 	return modelicon
@@ -225,43 +225,6 @@ local function entityHierarchy(parent, route)
 	return tree
 end
 
----Construct a flat array of the entity's models from the model tree
----@param entity Entity
----@param tbl any
----@return any
-local function getModelChildrenIdentifier(entity, tbl)
-	if not IsValid(entity) then
-		return {}
-	end
-
-	local children = getValidModelChildren(entity)
-	for _, child in ipairs(children) do
-		table.insert(tbl, child:GetModel())
-		table.insert(tbl, child:GetSkin())
-		table.insert(tbl, getBodygroups(child))
-		getModelChildrenIdentifier(child, tbl)
-	end
-
-	return tbl
-end
-
----Check if every descendant's model is equal to some other descendant model
----@param t1 table
----@param t2 table
-local function isModelChildrenEqual(t1, t2)
-	if #t1 ~= #t2 then
-		return false
-	end
-
-	for i = 1, #t1 do
-		if t1[i] ~= t2[i] then
-			return false
-		end
-	end
-
-	return true
-end
-
 ---Construct the DTree from the entity model tree
 ---@param tree ModelTree
 ---@param nodeParent ModelTreePanel_Node
@@ -314,12 +277,6 @@ local function buildTree(treePanel, entity)
 
 	return hierarchy
 end
-
-local PANEL_FILTER = {
-	DCategoryHeader = true,
-	DLabel = true,
-	DTextEntry = true,
-}
 
 ---@param cPanel DForm|ControlPanel
 ---@param panelProps ModelPanelProps
@@ -383,27 +340,22 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local shouldSet = false
 
 	---Change the settings when we select another model to edit
+	---@param oldEditors Panel[]
 	---@param category DForm
 	---@param tree ModelTree
 	---@returns Panel[]
-	local function resetModelSettings(category, tree)
-		for _, panel in ipairs(category:GetChildren()) do
+	local function resetModelSettings(oldEditors, category, tree)
+		for _, panel in ipairs(oldEditors) do
 			if IsValid(panel) then
-				if PANEL_FILTER[panel:GetName()] then
-					continue
-				end
-
-				if panel:GetName() == "DSizeToContents" and PANEL_FILTER[panel:GetChildren()[1]:GetName()] then
-					continue
-				end
-
 				panel:Remove()
 			end
 		end
 
-		local entity = Entity(tree.entity)
+		-- During a model change, the entity's model is usually not ready for the client, so we'll get it immediately
+		-- using a ClientsideModel
+		local csModel = ClientsideModel(tree.model)
 		local editors = {}
-		local skins = entity:SkinCount()
+		local skins = csModel:SkinCount()
 		if skins > 1 then
 			local skinSlider = category:NumSlider("Skin", "", 0, skins - 1, 0)
 			---@cast skinSlider DNumSlider
@@ -422,8 +374,9 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			table.insert(editors, skinSlider)
 		end
 
-		for i = 2, #tree.bodygroupData do
-			local bodygroupData = tree.bodygroupData[i]
+		local modelBodygroupData = csModel:GetBodyGroups()
+		for i = 2, #modelBodygroupData do
+			local bodygroupData = modelBodygroupData[i]
 			local bodygroupSlider =
 				category:NumSlider(string.NiceName(bodygroupData.name), "", 0, bodygroupData.num - 1, 0)
 			---@cast bodygroupSlider DNumSlider
@@ -437,6 +390,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			end
 			table.insert(editors, bodygroupSlider)
 		end
+		csModel:Remove()
 
 		return editors
 	end
@@ -463,9 +417,17 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 		modelEntry:SetValue(node.info.model)
 		panelState.haloedEntity = Entity(node.info.entity)
-		dermaEditors = resetModelSettings(modelForm, node.info)
+		dermaEditors = resetModelSettings(dermaEditors, modelForm, node.info)
+
+		refreshTree(node.info)
 
 		settingModelEntry = false
+	end
+
+	-- Initialize with our selection
+	if IsValid(treePanel) and IsValid(treePanel.ancestor) then
+		treePanel:SetSelectedItem(treePanel.ancestor)
+		refreshTree(panelState.modelTree)
 	end
 
 	---If we are moving a `DNumSlider`, we are editing.
@@ -488,7 +450,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		if success then
 			local node = treePanel:GetSelectedItem()
 			node.info.model = model
-			dermaEditors = resetModelSettings(modelForm, panelState.modelTree)
+			dermaEditors = resetModelSettings(dermaEditors, modelForm, node.info)
 			node.Icon:SetImage(getModelNodeIconPath(Entity(node.info.entity), model, 0))
 			shouldSet = true
 		end
@@ -497,7 +459,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	end)
 
 	local lastThink = CurTime()
-	local lastModelChildren = {}
+	local lastModelChange = -1
 	timer.Remove("modeltree_think")
 	timer.Create("modeltree_think", 0, -1, function()
 		local now = CurTime()
@@ -509,16 +471,22 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		end
 
 		-- Whether we should receive updates from the server or not.
-		-- Useful if we want an external source to modify the models of the entity
+		-- Useful if we want an external source to modify the model tree of the entity
 		if lock:GetChecked() then
 			return
 		end
 
-		local currentModelChildren = getModelChildrenIdentifier(modelEntity, {})
+		if editing then
+			return
+		end
 
-		if not isModelChildrenEqual(lastModelChildren, currentModelChildren) then
+		if not IsValid(modelEntity) then
+			return
+		end
+
+		if modelEntity.LastModelChange and modelEntity.LastModelChange ~= lastModelChange then
 			refreshTree(panelState.modelTree)
-			lastModelChildren = currentModelChildren
+			lastModelChange = modelEntity.LastModelChange
 		end
 	end)
 	timer.Start("modeltree_think")

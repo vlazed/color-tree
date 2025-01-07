@@ -17,7 +17,8 @@ local pt = include("colortree/shared/proxyTransformers.lua")
 
 local cloakProxies, glowProxies, proxyTransformers = pt.cloakProxies, pt.glowProxies, pt.proxyTransformers
 
-local decodeData, isAdvancedColorsInstalled = helpers.decodeData, helpers.isAdvancedColorsInstalled
+local decodeData, isAdvancedColorsInstalled, getAncestor =
+	helpers.decodeData, helpers.isAdvancedColorsInstalled, helpers.getAncestor
 
 do -- Keep track of the last time the (sub)colors of an entity or its children has changed
 	---@class Colorable
@@ -40,10 +41,7 @@ do -- Keep track of the last time the (sub)colors of an entity or its children h
 			return self:colortree_oldSetColor(newColor)
 		end
 
-		local root = self
-		while root:GetParent() ~= NULL do
-			root = self:GetParent()
-		end
+		local root = getAncestor(self)
 
 		if SERVER then
 			updateColor(root)
@@ -59,10 +57,7 @@ do -- Keep track of the last time the (sub)colors of an entity or its children h
 				meta.colortree_oldSetSubColor = meta.SetSubColor
 			end
 			function meta:SetSubColor(ind, newColor)
-				local root = self
-				while root:GetParent() ~= NULL do
-					root = self:GetParent()
-				end
+				local root = getAncestor(self)
 
 				if SERVER then
 					updateColor(root)

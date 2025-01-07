@@ -288,12 +288,13 @@ local function descriptor(str)
 end
 
 ---Change the settings to an addon's UI if it is installed and if the concommands related to them exist
+---@param oldSettings Panel[]
 ---@param category DForm
 ---@param proxy string
 ---@returns Panel[]
-local function resetProxySettings(category, proxy)
-	for _, panel in ipairs(category:GetChildren()) do
-		if IsValid(panel) and panel:GetName() ~= "DCategoryHeader" then
+local function resetProxySettings(oldSettings, category, proxy)
+	for _, panel in ipairs(oldSettings) do
+		if IsValid(panel) then
 			panel:Remove()
 		end
 	end
@@ -477,7 +478,7 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	proxySet:Dock(TOP)
 
 	local proxySettings = makeCategory(colorForm, "Proxy Settings", "DForm")
-	local proxyDermas = resetProxySettings(proxySettings, proxySet:GetText())
+	local proxyDermas = resetProxySettings({}, proxySettings, proxySet:GetText())
 
 	local settings = makeCategory(cPanel, "Settings", "DForm")
 
@@ -616,7 +617,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	---@param newVal string
 	function proxySet:OnValueChange(newVal)
 		colorPicker:SetLabel("Color " .. newVal)
-		proxyDermas = resetProxySettings(proxySettings, newVal)
+		proxyDermas = resetProxySettings(proxyDermas, proxySettings, newVal)
 		dermaEditors = hookProxies(proxyDermas, newVal)
 	end
 
