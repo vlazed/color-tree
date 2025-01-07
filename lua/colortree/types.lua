@@ -44,6 +44,11 @@
 ---@field SetSubColor fun(self: Colorable, ind: integer, color: Color?)? -- Setter from Advanced Color Tool. We use this to check if it is installed
 ---@field _adv_colours table?
 
+---An entity that has a model, skin, or bodygroup setter
+---@class ModelEntity: Entity
+---@field LastModelChange number
+---@field GetParent fun(self: ModelEntity): parent: ModelEntity
+
 ---Dupe data for color trees
 ---@class ColorTreeData
 ---@field colortree_color Color
@@ -81,7 +86,6 @@
 ---@field defaultSkin Skin
 ---@field defaultBodygroups Bodygroups
 ---@field bodygroups Bodygroups
----@field bodygroupData BodyGroupData[]
 ---@field skin Skin
 ---@field children ModelTree[]
 
@@ -161,7 +165,7 @@
 
 ---Immutable properties of the color panel
 ---@class ModelPanelProps
----@field modelEntity Entity
+---@field modelEntity ModelEntity
 
 ---Mutable properties of the color panel
 ---@class ModelPanelState

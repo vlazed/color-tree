@@ -29,6 +29,15 @@ function helpers.getValidModelChildren(entity)
 	return filteredChildren
 end
 
+---@param entity Entity
+---@return Entity
+function helpers.getAncestor(entity)
+	while entity:GetParent() ~= NULL do
+		entity = entity:GetParent()
+	end
+	return entity
+end
+
 ---@param tbl table
 ---@return string
 function helpers.encodeData(tbl)
