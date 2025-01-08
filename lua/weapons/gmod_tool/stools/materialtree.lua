@@ -123,8 +123,9 @@ if SERVER then
 		---Naively, if we don't check if our materials are different, then we would be setting these for
 		---ALL submaterials, which results in unnecessary net calls which lags the client.
 		for ind, _ in ipairs(ent:GetMaterials()) do
-			if ent:GetSubMaterial(ind - 1) ~= tostring(data.materialtree_submaterials[ind - 1]) then
-				ent:SetSubMaterial(ind - 1, data.materialtree_submaterials[ind - 1])
+			local submaterial = data.materialtree_submaterials[ind - 1]
+			if ent:GetSubMaterial(ind - 1) ~= tostring(submaterial) then
+				ent:SetSubMaterial(ind - 1, Either(submaterial and submaterial ~= "nil", submaterial, ""))
 			end
 		end
 
