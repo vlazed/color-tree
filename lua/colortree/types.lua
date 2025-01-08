@@ -49,6 +49,11 @@
 ---@field LastModelChange number
 ---@field GetParent fun(self: ModelEntity): parent: ModelEntity
 
+---An entity that has a material setter
+---@class MaterialEntity: Entity
+---@field LastMaterialChange number
+---@field GetParent fun(self: MaterialEntity): parent: MaterialEntity
+
 ---Dupe data for color trees
 ---@class ColorTreeData
 ---@field colortree_color Color
@@ -88,6 +93,20 @@
 ---@field bodygroups Bodygroups
 ---@field skin Skin
 ---@field children ModelTree[]
+
+---Dupe data for material trees
+---@class MaterialTreeData
+---@field materialtree_material string
+---@field materialtree_submaterials string[]
+
+---Main structure representing an entity's material tree
+---@class MaterialTree
+---@field parent integer?
+---@field route integer[]?
+---@field entity integer
+---@field material string
+---@field submaterials string[]
+---@field children MaterialTree[]
 
 ---UI
 
@@ -140,6 +159,17 @@
 ---@field ancestor ModelTreePanel_Node
 ---@field GetSelectedItem fun(self: ModelTreePanel): ModelTreePanel_Node
 
+---Wrapper for `DTree_Node`
+---@class MaterialTreePanel_Node: DTree_Node
+---@field info MaterialTree
+---@field Icon DImage
+---@field GetChildNodes fun(self: MaterialTreePanel_Node): MaterialTreePanel_Node[]
+
+---Wrapper for `DTree`
+---@class MaterialTreePanel: DTree
+---@field ancestor MaterialTreePanel_Node
+---@field GetSelectedItem fun(self: MaterialTreePanel): MaterialTreePanel_Node
+
 ---END TODO
 
 ---@class ColorSlider: DPanel
@@ -172,3 +202,21 @@
 ---@field haloedEntity Entity
 ---@field haloColor Color
 ---@field modelTree ModelTree?
+
+---Main material control panel UI
+---@class MaterialPanelChildren
+---@field treePanel MaterialTreePanel
+---@field materialForm DForm
+---@field materialEntry DTextEntry
+---@field materialGallery MatSelect
+---@field lock DCheckBoxLabel
+
+---Immutable properties of the color panel
+---@class MaterialPanelProps
+---@field materialEntity MaterialEntity
+
+---Mutable properties of the color panel
+---@class MaterialPanelState
+---@field haloedEntity Entity
+---@field haloColor Color
+---@field materialTree MaterialTree?
