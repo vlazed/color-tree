@@ -87,7 +87,7 @@ local function refreshTree(tree)
 	local entity = tree.entity and Entity(tree.entity) or NULL
 	tree.material = IsValid(entity) and entity:GetMaterial() or ""
 	for ind, _ in ipairs(entity:GetMaterials()) do
-		local submaterial = entity:GetSubMaterial(ind)
+		local submaterial = entity:GetSubMaterial(ind - 1)
 		if submaterial and #submaterial ~= 0 and submaterial ~= "nil" then
 			tree.submaterials[ind - 1] = submaterial
 		else
