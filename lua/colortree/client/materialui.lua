@@ -289,10 +289,15 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 
 	local materialForm = makeCategory(cPanel, "Material", "ControlPanel")
 	materialForm:Help("#tool.materialtree.material")
-	local materialEntry = vgui.Create("DTextEntry", cPanel)
+	local materialClear = vgui.Create("DButton", materialForm)
+	local materialEntry = vgui.Create("DTextEntry", materialForm)
 	---@cast materialEntry DTextEntry
-	materialForm:AddItem(materialEntry)
-	materialEntry:Dock(TOP)
+	materialForm:AddItem(materialEntry, materialClear)
+	materialEntry:Dock(FILL)
+
+	materialClear:SetText("X")
+	materialClear:SetTooltip("#tool.materialtree.clear.tooltip")
+	materialClear:Dock(RIGHT)
 
 	if IsValid(materialEntity) then
 		materialEntry:SetText(materialEntity:GetMaterial())
@@ -326,6 +331,7 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 		treePanel = treePanel,
 		materialForm = materialForm,
 		materialEntry = materialEntry,
+		materialClear = materialClear,
 		materialGallery = materialGallery,
 		lock = lock,
 	}
@@ -340,6 +346,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local treePanel = panelChildren.treePanel
 	local materialForm = panelChildren.materialForm
 	local materialEntry = panelChildren.materialEntry
+	local materialClear = panelChildren.materialClear
 	local materialGallery = panelChildren.materialGallery
 	local lock = panelChildren.lock
 
@@ -347,6 +354,10 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 	function materialGallery:OnSelect(material)
 		materialEntry:SetValue(material)
+	end
+
+	function materialClear:DoClick()
+		materialEntry:SetValue("")
 	end
 
 	function materialEntry:OnValueChange(newVal)

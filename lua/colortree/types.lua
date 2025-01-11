@@ -208,6 +208,7 @@
 ---@field treePanel MaterialTreePanel
 ---@field materialForm DForm
 ---@field materialEntry DTextEntry
+---@field materialClear DButton
 ---@field materialGallery MatSelect
 ---@field lock DCheckBoxLabel
 
