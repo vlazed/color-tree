@@ -117,7 +117,7 @@ end
 function TOOL:RightClick(tr)
 	self:SetModelEntity(IsValid(tr.Entity) and tr.Entity or NULL)
 	if IsValid(tr.Entity) then
-		tr.Entity:CallOnRemove("colortree_removeentity", function()
+		tr.Entity:CallOnRemove("modeltree_removeentity", function()
 			if IsValid(self:GetWeapon()) then
 				self:SetModelEntity(NULL)
 			end

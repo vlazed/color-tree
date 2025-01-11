@@ -8,6 +8,8 @@ local proxyTransformers = pt.proxyTransformers
 
 local getValidModelChildren, encodeData, isAdvancedColorsInstalled =
 	helpers.getValidModelChildren, helpers.encodeData, helpers.isAdvancedColorsInstalled
+local getModelName, getModelNameNice, getModelNodeIconPath =
+	helpers.getModelName, helpers.getModelNameNice, helpers.getModelNodeIconPath
 
 local ui = {}
 
@@ -107,41 +109,6 @@ local function makeCategory(cPanel, name, type)
 	category:SetLabel(name)
 	cPanel:AddItem(category)
 	return category
-end
-
----Get a nicely formatted model name
----@param entity Entity
----@return string
-local function getModelNameNice(entity)
-	local mdl = string.Split(entity:GetModel() or "", "/")
-	mdl = mdl[#mdl]
-	return string.NiceName(string.sub(mdl, 1, #mdl - 4))
-end
-
----Get the model name without the path
----@param entity Entity
----@return string
-local function getModelName(entity)
-	local mdl = string.Split(entity:GetModel(), "/")
-	mdl = mdl[#mdl]
-	return mdl
-end
-
----Grab the entity's model icon
----@source https://github.com/NO-LOAFING/AdvBonemerge/blob/371b790d00d9bcbb62845ce8785fc6b98fbe8ef4/lua/weapons/gmod_tool/stools/advbonemerge.lua#L1079
----@param ent Entity
----@return string iconPath
-local function getModelNodeIconPath(ent)
-	local skinid = ent:GetSkin() or 0
-	local modelicon = "spawnicons/" .. string.StripExtension(ent:GetModel()) .. ".png"
-	if skinid > 0 then
-		modelicon = "spawnicons/" .. string.StripExtension(ent:GetModel()) .. "_skin" .. skinid .. ".png"
-	end
-
-	if not file.Exists("materials/" .. modelicon, "GAME") then
-		modelicon = "icon16/bricks.png"
-	end
-	return modelicon
 end
 
 ---Reset the colors of a (sub)tree
@@ -402,6 +369,7 @@ local function setSubMaterialEntity(entity, submaterials, panelChildren, panelSt
 	end
 
 	submaterialFrame = vgui.Create("colortree_submaterials")
+	submaterialFrame:SetHelp("#tool.colortree.submaterial.help")
 	submaterialFrame:SetVisible(lastVisible)
 	submaterialFrame:SetEntity(entity)
 	if submaterials then
@@ -757,24 +725,26 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	end
 
 	hook.Remove("OnContextMenuOpen", "colortree_hookcontext")
-	hook.Add("OnContextMenuOpen", "colortree_hookcontext", function()
-		local tool = LocalPlayer():GetTool()
-		-- Advanced Colors
-		if IsValid(submaterialFrame) and tool and tool.Mode == "colortree" then
-			submaterialFrame:SetVisible(true)
-			submaterialFrame:MakePopup()
-		end
-	end)
+	-- Advanced Colors
+	if IsValid(submaterialFrame) then
+		hook.Add("OnContextMenuOpen", "colortree_hookcontext", function()
+			local tool = LocalPlayer():GetTool()
+			if tool and tool.Mode == "colortree" then
+				submaterialFrame:SetVisible(true)
+				submaterialFrame:MakePopup()
+			end
+		end)
+	end
 
 	hook.Remove("OnContextMenuClose", "colortree_hookcontext")
-	hook.Add("OnContextMenuClose", "colortree_hookcontext", function()
-		-- Advanced Colors
-		if IsValid(submaterialFrame) then
+	-- Advanced Colors
+	if IsValid(submaterialFrame) then
+		hook.Add("OnContextMenuClose", "colortree_hookcontext", function()
 			submaterialFrame:SetVisible(false)
 			submaterialFrame:SetMouseInputEnabled(false)
 			submaterialFrame:SetKeyboardInputEnabled(false)
-		end
-	end)
+		end)
+	end
 
 	local lastThink = CurTime()
 	-- ENT.LastColorChange is always at least 0. We set it to -1 to ensure that we will always
