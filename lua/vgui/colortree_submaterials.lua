@@ -51,7 +51,7 @@ function PANEL:Init()
 	self:SetSizable(false)
 
 	self:SetPos(WIDTH * 0.1, HEIGHT * 0.25)
-	self:SetSize(WIDTH * 0.25, HEIGHT * 0.5)
+	self:SetSize(WIDTH * 0.265, HEIGHT * 0.5)
 
 	self.ButtonHeight = 80
 
@@ -59,9 +59,6 @@ function PANEL:Init()
 	self.Help = vgui.Create("DPanel", self)
 	self.Help.Text = vgui.Create("DLabel", self.Help)
 	self.Help.Text:SetDark(true)
-	self.Help.Text:SetText(
-		"Select a material from the gallery, and then click on the lines on the left to edit the color"
-	)
 	self.Help.Text:SetWrap(true)
 
 	---@type colortree_selection
@@ -105,6 +102,10 @@ function PANEL:Init()
 	self.submaterials = {}
 	self.submaterialSet = {}
 	self.hovering = false
+end
+
+function PANEL:SetHelp(text)
+	self.Help.Text:SetText(text)
 end
 
 function PANEL:Paint(w, h)

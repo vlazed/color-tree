@@ -234,6 +234,7 @@ local function setSubMaterialEntity(entity, submaterials, panelChildren, panelSt
 	end
 
 	submaterialFrame = vgui.Create("colortree_submaterials")
+	submaterialFrame:SetHelp("#tool.materialtree.submaterial.help")
 	submaterialFrame:SetVisible(lastVisible)
 	submaterialFrame:SetEntity(entity)
 	if submaterials then
