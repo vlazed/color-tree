@@ -47,6 +47,20 @@ local function setColorClient(tree)
 		entity:SetRenderMode(RENDERMODE_TRANSCOLOR)
 	end
 
+	if tree.proxyColor["PlayerColor"] and tree.proxyColor["PlayerColor"].color then
+		function entity:GetPlayerColor()
+			local v = Vector(
+				tree.proxyColor["PlayerColor"].color.r,
+				tree.proxyColor["PlayerColor"].color.g,
+				tree.proxyColor["PlayerColor"].color.b
+			)
+			v:Div(255)
+			return v
+		end
+	else
+		entity.GetPlayerColor = nil
+	end
+
 	for name, transformer in pairs(proxyTransformers) do
 		local proxyExists = tree.proxyColor
 			and tree.proxyColor[name]

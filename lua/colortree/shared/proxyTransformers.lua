@@ -44,6 +44,10 @@ local function paintApply(ply, ent, data)
 	end
 end
 
+local function customPlayerColor(ent)
+	return ent:GetNWVector("stikragdollcolorer", DEFAULT_PLAYER_COLOR)
+end
+
 ---@type ProxyTransformer
 local cloakFuncs = {
 	entity = {
@@ -173,16 +177,17 @@ local proxyTransformers = {
 		reset = glowReset,
 	},
 	["PlayerColor"] = {
-		-- FIXME: Support for Stik's tools or Ragdoll Colorizer
 		apply = function(ply, ent, data)
 			---@diagnostic disable-next-line
 			if isfunction(RagdollColorEntityTable) then
 				---@diagnostic disable-next-line
 				local tbl = RagdollColorEntityTable()
 
-				local vector = { data.r / 255, data.g / 255, data.b / 255 }
-				table.insert(tbl, ent:EntIndex(), ent)
+				local vector = Vector(data.r / 255, data.g / 255, data.b / 255)
+				tbl[ent:EntIndex()] = ent
 				ent:SetNWVector("stikragdollcolorer", vector)
+
+				ent.GetPlayerColor = customPlayerColor
 
 				local count = table.Count(tbl)
 
@@ -218,6 +223,10 @@ local proxyTransformers = {
 				ent.GetPlayerColor = nil
 				duplicator.ClearEntityModifier(ent, "stikRagdollColor")
 				tbl[ent:EntIndex()] = NULL
+				net.Start("ragdolltblclient")
+				net.WriteBit(true)
+				net.WriteEntity(ent)
+				net.Broadcast()
 			else
 				if SERVER then
 					net.Start("SendToRagdollClient")
