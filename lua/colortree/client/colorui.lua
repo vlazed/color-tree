@@ -47,7 +47,7 @@ local function setColorClient(tree)
 		entity:SetRenderMode(RENDERMODE_TRANSCOLOR)
 	end
 
-	if tree.proxyColor["PlayerColor"] and tree.proxyColor["PlayerColor"].color then
+	if tree.proxyColor and tree.proxyColor["PlayerColor"] and tree.proxyColor["PlayerColor"].color then
 		function entity:GetPlayerColor()
 			local v = Vector(
 				tree.proxyColor["PlayerColor"].color.r,
@@ -269,12 +269,12 @@ local function descriptor(str)
 end
 
 ---Change the settings to an addon's UI if it is installed and if the concommands related to them exist
----@param oldSettings Panel[]
+---@param oldSettings table<MaterialProxy, Panel>
 ---@param category DForm
 ---@param proxy string
----@returns Panel[]
+---@returns table<MaterialProxy, Panel>
 local function resetProxySettings(oldSettings, category, proxy)
-	for _, panel in ipairs(oldSettings) do
+	for _, panel in pairs(oldSettings) do
 		if IsValid(panel) then
 			panel:Remove()
 		end
@@ -289,10 +289,11 @@ local function resetProxySettings(oldSettings, category, proxy)
 	for _, proxyConVar in ipairs(proxyConVars) do
 		local convar = proxyConVar[1]
 		local dermaClass = proxyConVar[2]
+		local dermaLabel = proxyConVar[3]
 
 		local derma = vgui.Create(dermaClass, category)
 		derma:SetDark(true)
-		derma:SetText(descriptor(convar))
+		derma:SetText(Either(dermaLabel and #dermaLabel > 0, dermaLabel, descriptor(convar)))
 		derma:SetConVar(convar)
 		category:AddItem(derma)
 		derma:Dock(TOP)
@@ -303,7 +304,7 @@ local function resetProxySettings(oldSettings, category, proxy)
 	return proxyDermas
 end
 
----@param proxyDermas Panel[]
+---@param proxyDermas table<MaterialProxy, Panel>
 ---@returns ProxyData
 local function getProxyData(proxyDermas)
 	local data = {}
@@ -562,7 +563,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	end
 
 	---Anytime the proxy entry changes, hook the new dermas. Return the dermas that have the IsEditing method, for tracking
-	---@param dermas {[string]: Panel}
+	---@param dermas table<MaterialProxy, Panel>
 	---@param proxy MaterialProxy
 	---@return Panel[]
 	local function hookProxies(dermas, proxy)

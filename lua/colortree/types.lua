@@ -110,7 +110,7 @@
 
 ---UI
 
----@alias ProxyDermas {[MaterialProxy]: Panel}
+---@alias ProxyDermas table<MaterialProxy, Panel>
 
 ---Main color control panel UI
 ---@class ColorPanelChildren
