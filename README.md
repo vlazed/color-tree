@@ -13,7 +13,7 @@ This attempts to support addons that manipulate material proxies, such as
 - [Ragdoll Colorizer](https://steamcommunity.com/sharedfiles/filedetails/?id=267610127)
 - [Stik's Tools Ragdoll Color](https://steamcommunity.com/sharedfiles/filedetails/?id=2402581521)
 
-The tool also supports submaterial colouring if the Advanced Colour tool is installed. If it is installed, upon selecting an entity, the submaterial gallery from the [Material Tree](/README.md/#material-tree) will pop up, allowing you to select a submaterial to modify its colors.
+The tool also supports submaterial colouring if the [Advanced Colour Tool](https://steamcommunity.com/sharedfiles/filedetails/?id=692778306) is installed. If it is installed, upon selecting an entity, the submaterial gallery from the [Material Tree](#material-tree) will pop up, allowing you to select a submaterial to modify its colors.
 
 Unlike the Color Tool, which requires the user to click on the entity to change colors, copy colors, or reset colors, the Color Tree requires the user to click on the entity only once. Color changes to the entity will show when the user clicks on the color mixer. In addition, the color mixer will also update itself when the entity's color changes externally (either from another user or from an external process such as Stop Motion Helper playback). 
 
