@@ -4,6 +4,7 @@ TOOL.Command = nil
 TOOL.ConfigName = ""
 
 TOOL.ClientConVar["lock"] = 0
+TOOL.ClientConVar["propagate"] = 0
 
 local CHANGE_BITS = 7
 local TIME_PRECISION = 10

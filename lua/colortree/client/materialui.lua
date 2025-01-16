@@ -119,7 +119,7 @@ local function addNode(parent, entity, info, rootInfo)
 		end
 
 		local menu = DermaMenu()
-		menu:AddOption("Reset Model", function()
+		menu:AddOption("Reset Material", function()
 			resetTree(info)
 			syncTree(rootInfo)
 		end)
@@ -318,6 +318,8 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	---END SOURCE
 
 	local settings = makeCategory(cPanel, "Settings", "DForm")
+	local propagate = settings:CheckBox("#tool.materialtree.propagate", "materialtree_propagate")
+	propagate:SetTooltip("#tool.materialtree.propagate.tooltip")
 
 	---@type DCheckBoxLabel
 	---@diagnostic disable-next-line
@@ -334,6 +336,7 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 		materialEntry = materialEntry,
 		materialClear = materialClear,
 		materialGallery = materialGallery,
+		propagate = propagate,
 		lock = lock,
 	}
 end
@@ -349,6 +352,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local materialEntry = panelChildren.materialEntry
 	local materialClear = panelChildren.materialClear
 	local materialGallery = panelChildren.materialGallery
+	local propagate = panelChildren.propagate
 	local lock = panelChildren.lock
 
 	local shouldSet = false
@@ -359,6 +363,18 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 
 	function materialClear:DoClick()
 		materialEntry:SetValue("")
+	end
+
+	---@param tree MaterialTree
+	local function setMaterial(tree, newMaterial)
+		tree.material = newMaterial
+
+		if not propagate:GetChecked() then return end
+		if not tree.children or #tree.children == 0 then return end
+		
+		for _, child in ipairs(tree.children) do
+			setMaterial(child, newMaterial)
+		end
 	end
 
 	function materialEntry:OnValueChange(newVal)
@@ -373,7 +389,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 				node.info.submaterials[id] = newVal
 			end
 		else
-			node.info.material = newVal
+			setMaterial(node.info, newVal)
 		end
 
 		-- setMaterialClient(node.info)

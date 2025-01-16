@@ -209,6 +209,7 @@
 ---@field materialForm DForm
 ---@field materialEntry DTextEntry
 ---@field materialClear DButton
+---@field propagate DCheckBoxLabel
 ---@field materialGallery MatSelect
 ---@field lock DCheckBoxLabel
 
