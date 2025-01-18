@@ -113,6 +113,8 @@ local function addNode(parent, entity, info, rootInfo)
 	local node = parent:AddNode(getModelNameNice(entity))
 	---@cast node MaterialTreePanel_Node
 
+	node:SetExpanded(true, true)
+
 	function node:DoRightClick()
 		if not IsValid(entity) then
 			return
