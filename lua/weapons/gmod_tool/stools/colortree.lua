@@ -224,15 +224,14 @@ if SERVER then
 	---Recursively call `setColor` on the tree's descendants
 	---@param colorTree ColorTree
 	local function setColorWithTree(colorTree, ply)
+		setColor(ply, Entity(colorTree.entity), getColorTreeData(colorTree))
+
 		if not colorTree.children or #colorTree.children == 0 then
 			return
 		end
 
 		for _, node in ipairs(colorTree.children) do
-			setColor(ply, Entity(node.entity), getColorTreeData(node))
-			if node.children and #node.children > 0 then
-				setColorWithTree(node.children)
-			end
+			setColorWithTree(node)
 		end
 	end
 

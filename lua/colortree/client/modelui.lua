@@ -272,11 +272,17 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	local lock = settings:CheckBox("#tool.modeltree.lock", "modeltree_lock")
 	lock:SetTooltip("#tool.modeltree.lock.tooltip")
 
+	---@type DCheckBoxLabel
+	---@diagnostic disable-next-line
+	local propagate = settings:CheckBox("#tool.modeltree.propagate", "modeltree_propagate")
+	propagate:SetTooltip("#tool.modeltree.propagate.tooltip")
+
 	return {
 		treePanel = treePanel,
 		modelForm = modelForm,
 		modelEntry = modelEntry,
 		lock = lock,
+		propagate = propagate,
 	}
 end
 
@@ -290,9 +296,27 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local modelForm = panelChildren.modelForm
 	local modelEntry = panelChildren.modelEntry
 	local lock = panelChildren.lock
+	local propagate = panelChildren.propagate
 
 	local dermaEditors = {}
 	local shouldSet = false
+
+	---@param tree ModelTree
+	---@param newSkin integer
+	local function setSkin(tree, newSkin)
+		local ent = Entity(tree.entity)
+		tree.skin = newSkin % ent:SkinCount()
+		if not propagate:GetChecked() then
+			return
+		end
+		if not tree.children or #tree.children == 0 then
+			return
+		end
+
+		for _, child in ipairs(tree.children) do
+			setSkin(child, newSkin)
+		end
+	end
 
 	---Change the settings when we select another model to edit
 	---@param oldEditors Panel[]
@@ -311,15 +335,17 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		local csModel = ClientsideModel(tree.model)
 		local editors = {}
 		local skins = csModel:SkinCount()
+
 		if skins > 1 then
 			local skinSlider = category:NumSlider("Skin", "", 0, skins - 1, 0)
 			---@cast skinSlider DNumSlider
 			skinSlider:SetValue(tree.skin)
+
 			function skinSlider:OnValueChanged(newVal)
 				local node = treePanel:GetSelectedItem()
 				newVal = math.modf(newVal)
 
-				tree.skin = newVal
+				setSkin(tree, newVal)
 				shouldSet = true
 
 				local entity = Entity(node.info.entity)

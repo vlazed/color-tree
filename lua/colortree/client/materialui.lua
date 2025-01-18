@@ -391,7 +391,6 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		else
 			setMaterial(node.info, newVal)
 		end
-
 		-- setMaterialClient(node.info)
 		shouldSet = true
 	end

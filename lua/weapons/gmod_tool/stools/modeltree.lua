@@ -4,6 +4,7 @@ TOOL.Command = nil
 TOOL.ConfigName = ""
 
 TOOL.ClientConVar["lock"] = 0
+TOOL.ClientConVar["propagate"] = 0
 
 local CHANGE_BITS = 7
 local TIME_PRECISION = 10
@@ -160,17 +161,15 @@ if SERVER then
 	end
 
 	---Recursively call `setModel` on the tree's descendants
-	---@param descendantTree ModelTree
-	local function setModelWithTree(descendantTree, ply)
-		if not descendantTree.children or #descendantTree.children == 0 then
+	---@param modelTree ModelTree
+	local function setModelWithTree(modelTree, ply)
+		setModel(ply, Entity(modelTree.entity), getModelTreeData(modelTree))
+		if not modelTree.children or #modelTree.children == 0 then
 			return
 		end
 
-		for _, node in ipairs(descendantTree.children) do
-			setModel(ply, Entity(node.entity), getModelTreeData(node))
-			if node.children and #node.children > 0 then
-				setModelWithTree(node.children)
-			end
+		for _, node in ipairs(modelTree.children) do
+			setModelWithTree(node)
 		end
 	end
 
@@ -200,7 +199,6 @@ if SERVER then
 		local encodedTree = net.ReadData(treeLen)
 		local tree = decodeData(encodedTree)
 
-		setModel(ply, Entity(tree.entity), getModelTreeData(tree))
 		setModelWithTree(tree, ply)
 	end)
 

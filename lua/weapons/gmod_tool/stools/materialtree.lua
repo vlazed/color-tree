@@ -144,17 +144,16 @@ if SERVER then
 	end
 
 	---Recursively call `setMaterial` on the tree's descendants
-	---@param descendantTree MaterialTree
-	local function setMaterialWithTree(descendantTree, ply)
-		if not descendantTree.children or #descendantTree.children == 0 then
+	---@param materialTree MaterialTree
+	local function setMaterialWithTree(materialTree, ply)
+		setMaterial(ply, Entity(materialTree.entity), getMaterialTreeData(materialTree))
+
+		if not materialTree.children or #materialTree.children == 0 then
 			return
 		end
 
-		for _, node in ipairs(descendantTree.children) do
-			setMaterial(ply, Entity(node.entity), getMaterialTreeData(node))
-			if node.children and #node.children > 0 then
-				setMaterialWithTree(node.children)
-			end
+		for _, node in ipairs(materialTree.children) do
+			setMaterialWithTree(node)
 		end
 	end
 
@@ -165,7 +164,6 @@ if SERVER then
 		local encodedTree = net.ReadData(treeLen)
 		local tree = decodeData(encodedTree)
 
-		setMaterial(ply, Entity(tree.entity), getMaterialTreeData(tree))
 		setMaterialWithTree(tree, ply)
 	end)
 

@@ -192,6 +192,7 @@
 ---@field modelForm DForm
 ---@field modelEntry DTextEntry
 ---@field lock DCheckBoxLabel
+---@field propagate DCheckBoxLabel
 
 ---Immutable properties of the color panel
 ---@class ModelPanelProps
