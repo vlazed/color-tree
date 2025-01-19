@@ -1,6 +1,6 @@
 # Tool Trees <!-- omit from toc -->
 
-Access and modify an entity's children and its descendants through the Material, Model, or Color Tree tools, with a familiar user interface.
+Use the [Tool Trees](https://steamcommunity.com/sharedfiles/filedetails/?id=3410249572) to access and modify an entity's children and its descendants through the Material, Model, or Color Tree tools, with a familiar user interface.
 
 ## Table of Contents <!-- omit from toc -->
 - [Tool Trees](#tool-trees)

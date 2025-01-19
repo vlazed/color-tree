@@ -1,4 +1,6 @@
 if SERVER then
+	resource.AddWorkshop("3410249572")
+
 	AddCSLuaFile("colortree/shared/helpers.lua")
 	AddCSLuaFile("colortree/shared/proxyTransformers.lua")
 	AddCSLuaFile("colortree/client/proxyConVars.lua")
