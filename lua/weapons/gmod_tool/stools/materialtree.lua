@@ -191,11 +191,20 @@ function TOOL.BuildCPanel(cPanel, materialEntity)
 	ui.HookPanel(panelChildren, { materialEntity = materialEntity }, panelState)
 end
 
+local TOOL = TOOL
+local player = LocalPlayer()
 hook.Remove("PreDrawHalos", "materialtree_halos")
 hook.Add("PreDrawHalos", "materialtree_halos", function()
+	player = IsValid(player) and player or LocalPlayer()
+
 	local haloedEntity = panelState.haloedEntity
 	local haloColor = panelState.haloColor
-	if IsValid(haloedEntity) then
+	local weapon = player:GetWeapon("gmod_tool")
+
+	---INFO: Tools are weapons, but GetWeapon returns a Weapon regardless of the argument, which may not be a tool.
+	---Setting this here so linter doesn't complain.
+	---@diagnostic disable-next-line
+	if IsValid(haloedEntity) and player and weapon and weapon:GetMode() == TOOL:GetMode() then
 		halo.Add({ haloedEntity }, haloColor)
 	end
 end)
