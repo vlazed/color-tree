@@ -1,9 +1,9 @@
 ---@module "colortree.shared.helpers"
 local helpers = include("colortree/shared/helpers.lua")
----@module "colortree.client.proxyConVars"
-local proxyConVarMap = include("colortree/client/proxyConVars.lua")
----@module "colortree.shared.proxyTransformers"
-local pt = include("colortree/shared/proxyTransformers.lua")
+---@module "colortree.client.proxyconvars"
+local proxyConVarMap = include("colortree/client/proxyconvars.lua")
+---@module "colortree.shared.proxytransformers"
+local pt = include("colortree/shared/proxytransformers.lua")
 local proxyTransformers = pt.proxyTransformers
 
 local getValidModelChildren, encodeData, isAdvancedColorsInstalled =

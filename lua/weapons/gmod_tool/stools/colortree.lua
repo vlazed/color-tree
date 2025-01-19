@@ -12,8 +12,8 @@ local TIME_PRECISION = 10
 
 ---@module "colortree.shared.helpers"
 local helpers = include("colortree/shared/helpers.lua")
----@module "colortree.shared.proxyTransformers"
-local pt = include("colortree/shared/proxyTransformers.lua")
+---@module "colortree.shared.proxytransformers"
+local pt = include("colortree/shared/proxytransformers.lua")
 
 local cloakProxies, glowProxies, proxyTransformers = pt.cloakProxies, pt.glowProxies, pt.proxyTransformers
 
