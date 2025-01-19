@@ -426,6 +426,9 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	local colorable = panelProps.colorable
 
 	local treeForm = makeCategory(cPanel, "Entity Hierarchy", "DForm")
+	if IsValid(colorable) then
+		treeForm:Help("#tool.tooltree.tree")
+	end
 	treeForm:Help(IsValid(colorable) and "Entity hierarchy for " .. getModelName(colorable) or "No entity selected")
 	local treePanel = vgui.Create("DTree", treeForm)
 	---@cast treePanel ColorTreePanel

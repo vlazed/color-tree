@@ -223,7 +223,8 @@ function PANEL:RefreshSelection()
 		function row.TestHover(_, x, y)
 			self.hovering = true
 			self.Tooltip:SetPos(x + 10, y - 0.55 * self.Tooltip:GetTall())
-			self.Tooltip:SetText(submaterialStruct[2])
+			local option = row:IsSelected() and "\nRight-click me to unselect" or ""
+			self.Tooltip:SetText(submaterialStruct[2] .. option)
 		end
 	end
 	selection.MaterialList:SetDirty(true)

@@ -275,6 +275,9 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	local materialEntity = panelProps.materialEntity
 
 	local treeForm = makeCategory(cPanel, "Entity Hierarchy", "DForm")
+	if IsValid(materialEntity) then
+		treeForm:Help("#tool.tooltree.tree")
+	end
 	treeForm:Help(
 		IsValid(materialEntity) and "Entity hierarchy for " .. getModelName(materialEntity) or "No entity selected"
 	)

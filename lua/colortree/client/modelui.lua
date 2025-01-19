@@ -243,6 +243,9 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	local modelEntity = panelProps.modelEntity
 
 	local treeForm = makeCategory(cPanel, "Entity Hierarchy", "DForm")
+	if IsValid(modelEntity) then
+		treeForm:Help("#tool.tooltree.tree")
+	end
 	treeForm:Help(IsValid(modelEntity) and "Entity hierarchy for " .. getModelName(modelEntity) or "No entity selected")
 	local treePanel = vgui.Create("DTree", treeForm)
 	---@cast treePanel ModelTreePanel
