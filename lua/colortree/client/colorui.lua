@@ -602,9 +602,34 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		return editors
 	end
 
+	---@param entity Colorable|Entity
+	---@param proxy MaterialProxy
+	---@param node ColorTreePanel_Node
+	---@param shouldIgnore boolean?
+	local function setMixerColor(entity, proxy, node, shouldIgnore)
+		ignore = Either(shouldIgnore ~= nil, shouldIgnore, false)
+		if #proxy > 0 then
+			local proxyEnt = proxyTransformers[proxy].entity.name
+			local proxyColor = IsValid(entity[proxyEnt]) and entity[proxyEnt]:GetColor()
+				or (node.info.proxyColor and node.info.proxyColor[proxy] and node.info.proxyColor[proxy].color)
+				or entity:GetColor()
+			colorPicker.Mixer:SetColor(proxyColor)
+		else
+			colorPicker.Mixer:SetColor(node.info.color)
+		end
+		ignore = false
+	end
+
 	---@param newVal string
 	function proxySet:OnValueChange(newVal)
+		local selectedNode = treePanel:GetSelectedItem()
+		if not IsValid(selectedNode) then
+			return
+		end
+
 		colorPicker:SetLabel("Color " .. newVal)
+		setMixerColor(Entity(selectedNode.info.entity), newVal, selectedNode, false)
+
 		proxyDermas = resetProxySettings(proxyDermas, proxySettings, newVal)
 		dermaEditors = hookProxies(proxyDermas, newVal)
 	end
@@ -678,13 +703,11 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	function treePanel:OnNodeSelected(node)
 		local entity = Entity(node.info.entity)
 		---@cast entity Colorable
-
+		local proxy = proxySet:GetValue()
 		if isAdvancedColorsInstalled(entity) then
 			setSubMaterialEntity(entity, table.GetKeys(node.info.colors), panelChildren, panelState)
 		end
-		ignore = true
-		colorPicker.Mixer:SetColor(entity:GetColor())
-		ignore = false
+		setMixerColor(entity, proxy, node, true)
 
 		refreshTree(node.info)
 
