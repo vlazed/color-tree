@@ -447,6 +447,10 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local lastThink = CurTime()
 	local lastModelChange = -1
 	timer.Remove("modeltree_think")
+	if not IsValid(modelEntity) then
+		return
+	end
+
 	timer.Create("modeltree_think", 0, -1, function()
 		local now = CurTime()
 		local editing = checkEditing(dermaEditors)

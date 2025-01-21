@@ -794,6 +794,10 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	-- refresh the tree at the start
 	local lastColorChange = -1
 	timer.Remove("colortree_think")
+	if not IsValid(colorable) then
+		return
+	end
+
 	timer.Create("colortree_think", 0, -1, function()
 		local now = CurTime()
 		local editing = checkEditing(dermaEditors)

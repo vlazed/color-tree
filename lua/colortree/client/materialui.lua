@@ -449,6 +449,10 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	local lastThink = CurTime()
 	local lastMaterialChange = -1
 	timer.Remove("materialtree_think")
+	if not IsValid(materialEntity) then 
+		return 
+	end
+
 	timer.Create("materialtree_think", 0, -1, function()
 		local now = CurTime()
 		local editing = checkEditing()
