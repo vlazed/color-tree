@@ -149,32 +149,21 @@ local function syncTree(tree)
 	net.SendToServer()
 end
 
+---Get material proxies from the entity if their proxy entity exists. Only supports ItemTintColor
 ---@param tree ColorTree
 ---@param entity Colorable
 local function getProxyData(tree, entity)
-	for name, transformer in pairs(proxyTransformers) do
-		local proxyExists = transformer.entity and entity[transformer.entity.name]
-		if not proxyExists then
-			continue
-		end
-		local ent = entity[transformer.entity.name]
-		if not IsValid(ent) then
-			continue
-		end
-		tree.proxyColor = tree.proxyColor or {}
-		tree.proxyColor[name] = {
-			color = color_white,
-			data = {},
-		}
-
-		for convar, var in pairs(transformer.entity.varMap) do
-			if convar == "color" then
-				tree.proxyColor[name].color = ent:GetColor()
-			elseif isfunction(ent["Get" .. var]) then
-				tree.proxyColor[name].data[convar] = ent["Get" .. var](ent)
-			end
-		end
+	local ent = entity.ProxyentPaintColor
+	if not IsValid(ent) then
+		return
 	end
+	tree.proxyColor = tree.proxyColor or {}
+	tree.proxyColor["ItemTintColor"] = {
+		color = ent:GetColor(),
+		data = {
+			["matproxy_tf2itempaint_override"] = ent:GetPaintOverride(), ---@diagnostic disable-line
+		},
+	}
 end
 
 ---Get changes to the entity's color tree from an external source
@@ -196,12 +185,18 @@ local function refreshTree(tree)
 	end
 end
 
+---We initialize with bogus values to ensure the paste menu doesn't pop up for some fields
 ---@type ColorTree
 local storedTree = {
 	entity = -1,
-	color = color_white,
-	renderMode = 0,
-	renderFx = 0,
+	---INFO: Type requires Color object, but we're not concerned about it during initialization
+	---@diagnostic disable-next-line
+	color = {
+		a = -1,
+	},
+	proxyColor = {},
+	renderMode = -1,
+	renderFx = -1,
 	children = {},
 }
 
@@ -222,25 +217,9 @@ local function addNode(parent, entity, info, rootInfo)
 			return
 		end
 
+		local tree = node.info
 		local menu = DermaMenu()
-		menu:AddOption("Copy Tree Settings", function()
-			storedTree.entity = node.info.entity
-			storedTree.color = node.info.color
-			storedTree.proxyColor = table.Copy(node.info.proxyColor)
-			storedTree.renderFx = node.info.renderFx
-			storedTree.renderMode = node.info.renderMode
-		end)
-		if storedTree.entity > 0 then
-			menu:AddOption("Paste Tree Settings", function()
-				node.info.color = storedTree.color
-				node.info.proxyColor = storedTree.proxyColor
-				node.info.renderFx = storedTree.renderFx
-				node.info.renderMode = storedTree.renderMode
-				syncTree(rootInfo)
-			end)
-		end
-		menu:AddSpacer()
-		if node.info.proxyColor then
+		if tree.proxyColor then
 			menu:AddOption("Reset All", function()
 				if IsValid(submaterialFrame) then
 					submaterialFrame:ClearSelection()
@@ -258,13 +237,86 @@ local function addNode(parent, entity, info, rootInfo)
 			syncTree(rootInfo)
 		end)
 
-		if node.info.proxyColor then
-			for proxy, _ in pairs(node.info.proxyColor) do
+		if tree.proxyColor then
+			for proxy, _ in pairs(tree.proxyColor) do
 				menu:AddOption("Reset " .. proxy, function()
 					node.info.proxyColor[proxy] = nil
 					syncTree(rootInfo)
 				end)
 			end
+		end
+		menu:AddSpacer()
+
+		local copyMenu = menu:AddSubMenu("Copy")
+		copyMenu:AddOption("All", function()
+			storedTree.entity = tree.entity
+			storedTree.color = tree.color
+			if tree.proxyColor and tree.proxyColor["ItemTintColor"] then
+				storedTree.proxyColor["ItemTintColor"] = tree.proxyColor["ItemTintColor"]
+			end
+			storedTree.renderFx = tree.renderFx
+			storedTree.renderMode = tree.renderMode
+		end)
+		copyMenu:AddSpacer()
+		copyMenu:AddOption("Color", function()
+			storedTree.entity = tree.entity
+			storedTree.color = tree.color
+		end)
+		if tree.proxyColor and tree.proxyColor["ItemTintColor"] then
+			copyMenu:AddOption("Tint", function()
+				storedTree.entity = tree.entity
+				storedTree.proxyColor["ItemTintColor"] = tree.proxyColor["ItemTintColor"]
+			end)
+		end
+		copyMenu:AddOption("Render FX", function()
+			storedTree.entity = tree.entity
+			storedTree.renderFx = tree.renderFx
+		end)
+		copyMenu:AddOption("Render Mode", function()
+			storedTree.entity = tree.entity
+			storedTree.renderMode = tree.renderMode
+		end)
+
+		if storedTree.entity > 0 then
+			local pasteMenu = menu:AddSubMenu("Paste")
+			if storedTree.color.a > -1 and storedTree.color ~= tree.color then
+				pasteMenu:AddOption("Color", function()
+					tree.color = storedTree.color
+					syncTree(rootInfo)
+				end)
+			end
+			if
+				next(storedTree.proxyColor)
+				and (
+					not tree.proxyColor
+					or storedTree.proxyColor["ItemTintColor"].color ~= tree.proxyColor["ItemTintColor"].color
+				)
+			then
+				pasteMenu:AddOption("Proxies", function()
+					tree.proxyColor = tree.proxyColor or {}
+					tree.proxyColor["ItemTintColor"] = table.Copy(storedTree.proxyColor["ItemTintColor"])
+					syncTree(rootInfo)
+				end)
+			end
+			if storedTree.renderFx > -1 and storedTree.renderFx ~= tree.renderFx then
+				pasteMenu:AddOption("Render FX", function()
+					tree.renderFx = storedTree.renderFx
+					syncTree(rootInfo)
+				end)
+			end
+			if storedTree.renderMode > -1 and storedTree.renderMode ~= tree.renderMode then
+				pasteMenu:AddOption("Render Mode", function()
+					tree.renderMode = storedTree.renderMode
+					syncTree(rootInfo)
+				end)
+			end
+			pasteMenu:AddOption("All", function()
+				tree.color = storedTree.color
+				tree.proxyColor["ItemTintColor"] = table.Copy(storedTree.proxyColor["ItemTintColor"])
+				tree.renderFx = storedTree.renderFx
+				tree.renderMode = storedTree.renderMode
+				syncTree(rootInfo)
+			end)
 		end
 
 		menu:Open()
@@ -513,7 +565,7 @@ function ui.ConstructPanel(cPanel, panelProps, panelState)
 	addChoiceFromRenders(renderFx, list.Get("RenderFX"))
 
 	colorForm:Help("Press the up or down arrows on your keyboard to view the most common material proxies")
-	local proxySet = colorForm:TextEntry("Proxy:", "colortree_proxy")
+	local proxySet = colorForm:TextEntry("Proxy:", "")
 	---@cast proxySet DTextEntry
 	proxySet:SetHistoryEnabled(true)
 	proxySet.History = table.GetKeys(proxyConVarMap)

@@ -113,6 +113,18 @@ local function refreshTree(tree)
 	end
 end
 
+---@type ModelTree
+local storedTree = {
+	entity = -1,
+	defaultModel = "",
+	defaultSkin = 0,
+	defaultBodygroups = "",
+	model = "",
+	bodygroups = "",
+	skin = -1,
+	children = {},
+}
+
 ---Add hooks and model tree pointers
 ---@param parent ModelTreePanel_Node
 ---@param entity Entity
@@ -131,10 +143,53 @@ local function addNode(parent, entity, info, rootInfo)
 		end
 
 		local menu = DermaMenu()
-		menu:AddOption("Reset Model", function()
+		menu:AddOption("Reset All", function()
 			resetTree(info)
 			syncTree(rootInfo)
 		end)
+		menu:AddSpacer()
+
+		local copyMenu = menu:AddSubMenu("Copy")
+		copyMenu:AddOption("All", function()
+			storedTree.entity = node.info.entity
+			storedTree.skin = node.info.skin
+			storedTree.bodygroups = node.info.bodygroups
+			storedTree.model = node.info.model
+		end)
+		copyMenu:AddSpacer()
+		copyMenu:AddOption("Skin", function()
+			storedTree.entity = node.info.entity
+			storedTree.skin = node.info.skin
+		end)
+		copyMenu:AddOption("Bodygroups", function()
+			storedTree.entity = node.info.entity
+			storedTree.bodygroups = node.info.bodygroups
+		end)
+		copyMenu:AddOption("Model", function()
+			storedTree.entity = node.info.entity
+			storedTree.model = node.info.model
+		end)
+		if storedTree.entity > 0 then
+			local pasteMenu = menu:AddSubMenu("Paste")
+			if storedTree.skin > -1 and storedTree.skin ~= node.info.skin then
+				pasteMenu:AddOption("Skin", function()
+					node.info.skin = storedTree.skin
+					syncTree(rootInfo)
+				end)
+			end
+			if #storedTree.bodygroups > 0 and storedTree.bodygroups ~= node.info.bodygroups then
+				pasteMenu:AddOption("Bodygroups", function()
+					node.info.bodygroups = storedTree.bodygroups
+					syncTree(rootInfo)
+				end)
+			end
+			if #storedTree.model > 0 and storedTree.model ~= node.info.model then
+				pasteMenu:AddOption("Model", function()
+					node.info.model = storedTree.model
+					syncTree(rootInfo)
+				end)
+			end
+		end
 
 		menu:Open()
 	end

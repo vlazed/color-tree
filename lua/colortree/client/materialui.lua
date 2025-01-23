@@ -103,6 +103,14 @@ local function refreshTree(tree)
 	end
 end
 
+---@type MaterialTree
+local storedTree = {
+	entity = -1,
+	material = "",
+	submaterials = {},
+	children = {},
+}
+
 ---Add hooks and material tree pointers
 ---@param parent MaterialTreePanel_Node
 ---@param entity Entity
@@ -125,6 +133,18 @@ local function addNode(parent, entity, info, rootInfo)
 			resetTree(info)
 			syncTree(rootInfo)
 		end)
+		menu:AddSpacer()
+		
+		menu:AddOption("Copy Material", function()
+			storedTree.entity = node.info.entity
+			storedTree.material = node.info.material
+		end)
+		if storedTree.entity > 0 then
+			menu:AddOption("Paste Material", function()
+				node.info.material = storedTree.material
+				syncTree(rootInfo)
+			end)
+		end
 
 		menu:Open()
 	end
