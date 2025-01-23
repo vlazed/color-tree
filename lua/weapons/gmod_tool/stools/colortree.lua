@@ -3,7 +3,6 @@ TOOL.Name = "#tool.colortree.name"
 TOOL.Command = nil
 TOOL.ConfigName = ""
 
-TOOL.ClientConVar["proxy"] = ""
 TOOL.ClientConVar["lock"] = 0
 TOOL.ClientConVar["propagate"] = 0
 
