@@ -149,6 +149,34 @@ local function syncTree(tree)
 	net.SendToServer()
 end
 
+---@param tree ColorTree
+---@param entity Colorable
+local function getProxyData(tree, entity)
+	for name, transformer in pairs(proxyTransformers) do
+		local proxyExists = transformer.entity and entity[transformer.entity.name]
+		if not proxyExists then
+			continue
+		end
+		local ent = entity[transformer.entity.name]
+		if not IsValid(ent) then
+			continue
+		end
+		tree.proxyColor = tree.proxyColor or {}
+		tree.proxyColor[name] = {
+			color = color_white,
+			data = {},
+		}
+
+		for convar, var in pairs(transformer.entity.varMap) do
+			if convar == "color" then
+				tree.proxyColor[name].color = ent:GetColor()
+			elseif isfunction(ent["Get" .. var]) then
+				tree.proxyColor[name].data[convar] = ent["Get" .. var](ent)
+			end
+		end
+	end
+end
+
 ---Get changes to the entity's color tree from an external source
 ---@param tree ColorTree
 local function refreshTree(tree)
@@ -157,6 +185,8 @@ local function refreshTree(tree)
 
 	tree.color = IsValid(entity) and entity:GetColor() or color_white
 	tree.colors = table.Copy(entity._adv_colours) or {}
+	getProxyData(tree, entity)
+
 	if not tree.children or #tree.children == 0 then
 		return
 	end
@@ -165,6 +195,15 @@ local function refreshTree(tree)
 		refreshTree(child)
 	end
 end
+
+---@type ColorTree
+local storedTree = {
+	entity = -1,
+	color = color_white,
+	renderMode = 0,
+	renderFx = 0,
+	children = {},
+}
 
 ---Add hooks and color tree pointers
 ---@param parent ColorTreePanel_Node
@@ -184,6 +223,23 @@ local function addNode(parent, entity, info, rootInfo)
 		end
 
 		local menu = DermaMenu()
+		menu:AddOption("Copy Tree Settings", function()
+			storedTree.entity = node.info.entity
+			storedTree.color = node.info.color
+			storedTree.proxyColor = table.Copy(node.info.proxyColor)
+			storedTree.renderFx = node.info.renderFx
+			storedTree.renderMode = node.info.renderMode
+		end)
+		if storedTree.entity > 0 then
+			menu:AddOption("Paste Tree Settings", function()
+				node.info.color = storedTree.color
+				node.info.proxyColor = storedTree.proxyColor
+				node.info.renderFx = storedTree.renderFx
+				node.info.renderMode = storedTree.renderMode
+				syncTree(rootInfo)
+			end)
+		end
+		menu:AddSpacer()
 		if node.info.proxyColor then
 			menu:AddOption("Reset All", function()
 				if IsValid(submaterialFrame) then
@@ -308,7 +364,7 @@ end
 
 ---@param proxyDermas table<MaterialProxy, Panel>
 ---@returns ProxyData
-local function getProxyData(proxyDermas)
+local function getProxyDataFromEditors(proxyDermas)
 	local data = {}
 
 	for name, _ in pairs(proxyDermas) do
@@ -534,7 +590,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		node.info.proxyColor = node.info.proxyColor or {}
 		node.info.proxyColor[proxy] = {
 			color = node.info.proxyColor[proxy] and node.info.proxyColor[proxy].color or color_white,
-			data = getProxyData(proxyDermas),
+			data = getProxyDataFromEditors(proxyDermas),
 		}
 
 		if propagate then
@@ -646,7 +702,7 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			node.info.proxyColor = node.info.proxyColor or {}
 			node.info.proxyColor[proxy] = {
 				color = color,
-				data = getProxyData(proxyDermas),
+				data = getProxyDataFromEditors(proxyDermas),
 			}
 		else
 			node.info.color = color
