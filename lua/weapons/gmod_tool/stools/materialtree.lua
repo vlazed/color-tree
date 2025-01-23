@@ -98,7 +98,8 @@ end
 ---@param tr table|TraceResult
 ---@return boolean
 function TOOL:RightClick(tr)
-	self:SetMaterialEntity(IsValid(tr.Entity) and tr.Entity or NULL)
+	-- Filter brush entities like the gm_construct color walls or the gm_construct mirror
+	self:SetMaterialEntity(IsValid(tr.Entity) and tr.Entity:GetBrushPlaneCount() == 0 and tr.Entity or NULL)
 	if IsValid(tr.Entity) then
 		tr.Entity:CallOnRemove("materialtree_removeentity", function()
 			if IsValid(self:GetWeapon()) then
