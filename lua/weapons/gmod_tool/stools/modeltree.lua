@@ -128,6 +128,20 @@ function TOOL:RightClick(tr)
 	return true
 end
 
+---Select the player
+---@return boolean
+function TOOL:Reload()
+	local pl = self:GetOwner()
+	self:SetModelEntity(pl)
+	pl:CallOnRemove("modeltree_removeentity", function()
+		if IsValid(self:GetWeapon()) then
+			self:SetMaterialEntity(NULL)
+		end
+	end)
+
+	return true
+end
+
 if SERVER then
 	---Set the models of the entity
 	---@param ply Player
@@ -137,7 +151,9 @@ if SERVER then
 		if IsValid(ply) then
 			ent.modeltree_owner = ply
 		end
-		if ent:GetModel() ~= data.modeltree_model then
+		local ancestor = getAncestor(ent)
+		-- It might be bad if we attempted to modify a player's (or its children) model
+		if ent:GetModel() ~= data.modeltree_model and ancestor ~= ply then
 			ent:SetModel(data.modeltree_model)
 		end
 
@@ -250,4 +266,5 @@ TOOL.Information = {
 	{ name = "info.1", op = 1 },
 	{ name = "right.0", op = 0 },
 	{ name = "right.1", op = 1 },
+	{ name = "reload", op = 0 },
 }

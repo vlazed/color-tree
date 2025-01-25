@@ -118,6 +118,20 @@ function TOOL:RightClick(tr)
 	return true
 end
 
+---Select the player
+---@return boolean
+function TOOL:Reload()
+	local pl = self:GetOwner()
+	self:SetColorable(pl)
+	pl:CallOnRemove("colortree_removeentity", function()
+		if IsValid(self:GetWeapon()) then
+			self:SetMaterialEntity(NULL)
+		end
+	end)
+
+	return true
+end
+
 if SERVER then
 	---Set the colors of the entity by default or through material proxy
 	---@param ply Player
@@ -292,4 +306,5 @@ TOOL.Information = {
 	{ name = "info.1", op = 1 },
 	{ name = "right.0", op = 0 },
 	{ name = "right.1", op = 1 },
+	{ name = "reload", op = 0 },
 }

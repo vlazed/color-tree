@@ -100,13 +100,21 @@ end
 function TOOL:RightClick(tr)
 	-- Filter brush entities like the gm_construct color walls or the gm_construct mirror
 	self:SetMaterialEntity(IsValid(tr.Entity) and tr.Entity:GetBrushPlaneCount() == 0 and tr.Entity or NULL)
-	if IsValid(tr.Entity) then
-		tr.Entity:CallOnRemove("materialtree_removeentity", function()
-			if IsValid(self:GetWeapon()) then
-				self:SetMaterialEntity(NULL)
-			end
-		end)
-	end
+
+	return true
+end
+
+---Select the player
+---@return boolean
+function TOOL:Reload()
+	local pl = self:GetOwner()
+	self:SetMaterialEntity(pl)
+	pl:CallOnRemove("materialtree_removeentity", function()
+		if IsValid(self:GetWeapon()) then
+			self:SetMaterialEntity(NULL)
+		end
+	end)
+
 	return true
 end
 
@@ -215,4 +223,5 @@ TOOL.Information = {
 	{ name = "info.1", op = 1 },
 	{ name = "right.0", op = 0 },
 	{ name = "right.1", op = 1 },
+	{ name = "reload", op = 0 },
 }

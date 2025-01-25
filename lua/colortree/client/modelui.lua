@@ -4,6 +4,7 @@ local helpers = include("colortree/shared/helpers.lua")
 local getValidModelChildren, encodeData = helpers.getValidModelChildren, helpers.encodeData
 local getModelName, getModelNameNice, getModelNodeIconPath =
 	helpers.getModelName, helpers.getModelNameNice, helpers.getModelNodeIconPath
+local getAncestor = helpers.getAncestor
 
 local ui = {}
 
@@ -459,6 +460,12 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 		modelEntry:SetValue(node.info.model)
 		panelState.haloedEntity = Entity(node.info.entity)
 		dermaEditors = resetModelSettings(dermaEditors, modelForm, node.info)
+
+		-- It might be bad if we attempted to modify models if we're the player
+		local ancestor = getAncestor(modelEntity)
+		if ancestor:IsPlayer() then
+			modelEntry:SetEnabled(false)
+		end
 
 		refreshTree(node.info)
 
