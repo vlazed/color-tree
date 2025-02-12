@@ -415,9 +415,14 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 			table.insert(editors, skinSlider)
 		end
 
+		---@type BodyGroupData[]
 		local modelBodygroupData = csModel:GetBodyGroups()
-		for i = 2, #modelBodygroupData do
+		for i = 1, #modelBodygroupData do
 			local bodygroupData = modelBodygroupData[i]
+			if bodygroupData.num <= 1 then
+				continue
+			end
+
 			local bodygroupSlider =
 				category:NumSlider(string.NiceName(bodygroupData.name), "", 0, bodygroupData.num - 1, 0)
 			---@cast bodygroupSlider DNumSlider
