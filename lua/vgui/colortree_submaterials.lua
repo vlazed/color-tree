@@ -1,5 +1,5 @@
 ---@class colortree_selection: DPanel
----@field PreviewIcon DImage
+---@field PreviewIcon DImageButton
 ---@field MaterialList DListView
 ---@field ClearButton DButton
 
@@ -64,13 +64,22 @@ function PANEL:Init()
 	---@type colortree_selection
 	---@diagnostic disable-next-line
 	self.Selection = vgui.Create("DPanel", self)
-	self.Selection.PreviewIcon = vgui.Create("DImage", self.Selection)
+	self.Selection.PreviewIcon = vgui.Create("DImageButton", self.Selection)
+	self.Selection.PreviewIcon:SetDepressImage(false)
 
 	self.Selection.PreviewIcon.TestHover = function(_, x, y)
 		local materialPath = self.Selection.PreviewIcon:GetImage()
 		self.hovering = true
 		self.Tooltip:SetPos(x + 10, y - 0.55 * self.Tooltip:GetTall())
 		self.Tooltip:SetText(shortPath(materialPath))
+	end
+
+	self.Selection.PreviewIcon.DoRightClick = function(pnl)
+		local menu = DermaMenu()
+		menu:AddOption("Copy to clipboard", function()
+			SetClipboardText(pnl:GetImage())
+		end)
+		menu:Open()
 	end
 
 	self.Selection.MaterialList = vgui.Create("DListView", self.Selection)
@@ -268,6 +277,14 @@ function PANEL:RefreshGallery()
 			end
 
 			self:RefreshSelection()
+		end
+
+		function materialIcon.DoRightClick(pnl)
+			local menu = DermaMenu()
+			menu:AddOption("Copy to clipboard", function()
+				SetClipboardText(pnl:GetImage())
+			end)
+			menu:Open()
 		end
 
 		materialIcon.TestHover = function(_, x, y)

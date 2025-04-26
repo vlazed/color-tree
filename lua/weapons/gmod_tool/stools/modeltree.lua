@@ -207,7 +207,9 @@ if SERVER then
 else
 	net.Receive("modeltree_update", function(_, _)
 		local entity = net.ReadEntity()
-		entity.LastModelChange = net.ReadUInt(CHANGE_BITS)
+		if IsValid(entity) then
+			entity.LastModelChange = net.ReadUInt(CHANGE_BITS)
+		end
 	end)
 end
 

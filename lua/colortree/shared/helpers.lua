@@ -81,6 +81,10 @@ end
 ---@param entity Entity
 ---@return Entity
 function helpers.getAncestor(entity)
+	if not IsValid(entity) then
+		return entity
+	end
+
 	while entity:GetParent() ~= NULL do
 		entity = entity:GetParent()
 	end
