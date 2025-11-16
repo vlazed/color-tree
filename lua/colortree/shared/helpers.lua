@@ -103,10 +103,21 @@ function helpers.decodeData(data)
 	return util.JSONToTable(util.Decompress(data))
 end
 
+local advancedColorFields = {
+	"_adv_colours",
+	"_subcolors",
+}
+
 ---@param ent Colorable|Entity
----@return boolean
+---@return string?
 function helpers.isAdvancedColorsInstalled(ent)
-	return isfunction(ent.SetSubColor)
+	if isfunction(ent.SetSubColor) then
+		for _, field in ipairs(advancedColorFields) do
+			if ent[field] then
+				return field
+			end
+		end
+	end
 end
 
 return helpers

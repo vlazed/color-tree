@@ -129,15 +129,16 @@ if SERVER then
 		end
 
 		-- Advanced Colour Tool Condition
-		if isAdvancedColorsInstalled(ent) then
-			if not ent._adv_colours then
+		local field = isAdvancedColorsInstalled(ent)
+		if field then
+			if not ent[field] then
 				---@diagnostic disable-next-line
 				ent:SetSubColor(0, nil)
 			end
 
 			for id, color in pairs(data.colortree_colors) do
 				-- Only update the color when its different
-				if ent._adv_colours[id] ~= Color(color.r, color.g, color.b, color.a) then
+				if ent[field][id] ~= Color(color.r, color.g, color.b, color.a) then
 					---@diagnostic disable-next-line
 					ent:SetSubColor(id, Color(color.r, color.g, color.b, color.a))
 				end
@@ -146,7 +147,7 @@ if SERVER then
 			local mats = ent:GetMaterials()
 			for id = 0, #mats - 1 do
 				-- Color exists but we're resetting?
-				if not data.colortree_colors[id] and ent._adv_colours[id] then
+				if not data.colortree_colors[id] and ent[field][id] then
 					---@diagnostic disable-next-line
 					ent:SetSubColor(id, nil)
 				end
@@ -167,7 +168,7 @@ if SERVER then
 			local hasGlow = false
 			-- If the proxy exists in the data, apply the proxy while transforming the data to a usable format
 			for proxyName, proxy in pairs(data.colortree_proxyColor) do
-				---@cast proxy MaterialProxy
+				---@cast proxyName MaterialProxy
 				---@cast proxy ProxyField
 				if not proxy.color then
 					continue
