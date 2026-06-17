@@ -30,15 +30,21 @@ local function setColorClient(tree)
 		return
 	end
 
+	local field, flushField = isAdvancedColorsInstalled(entity)
+
 	-- Advanced Colors
 	if next(tree.colors) then
 		for id, color in pairs(tree.colors) do
 			entity:SetSubColor(id, color)
 		end
 	else
-		entity._adv_colours = {}
+		if field then
+			entity[field] = {}
+		end
 	end
-	entity._adv_colours_flush = true
+	if flushField then
+		entity[flushField] = true
+	end
 
 	entity:SetColor(tree.color)
 	entity:SetRenderMode(tree.renderMode)
