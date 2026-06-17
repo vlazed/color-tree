@@ -242,8 +242,10 @@ if SERVER then
 		local encodedTree = net.ReadData(treeLen)
 		local tree = decodeData(encodedTree)
 
-		setColor(ply, Entity(tree.entity), getColorTreeData(tree))
-		setColorWithTree(tree, ply)
+		if IsValid(tree.entity) then
+			setColor(ply, Entity(tree.entity), getColorTreeData(tree))
+			setColorWithTree(tree, ply)
+		end
 	end)
 
 	return
