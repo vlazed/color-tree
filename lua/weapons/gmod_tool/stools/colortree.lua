@@ -156,8 +156,9 @@ if SERVER then
 				ent[field][id] = color_white
 
 				local color = data.colortree_colors[id]
+				local colorResult = color and Color(color.r, color.g, color.b, color.a)
 				-- Color exists but we're resetting?
-				ent:SetSubColor(id, Either(color, Color(color.r, color.g, color.b, color.a), nil), true)
+				ent:SetSubColor(id, Either(color ~= nil, colorResult, nil), true)
 			end
 		end
 
