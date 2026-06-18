@@ -55,7 +55,7 @@ do -- Keep track of the last time the (sub)colors of an entity or its children h
 			if meta.colortree_oldSetSubColor == nil then
 				meta.colortree_oldSetSubColor = meta.SetSubColor
 			end
-			function meta:SetSubColor(ind, newColor)
+			function meta:SetSubColor(...)
 				local root = getAncestor(self)
 
 				if SERVER then
@@ -64,7 +64,7 @@ do -- Keep track of the last time the (sub)colors of an entity or its children h
 
 				---INFO: No need to check nil if we did so earlier
 				---@diagnostic disable-next-line
-				return self:colortree_oldSetSubColor(ind, newColor)
+				return self:colortree_oldSetSubColor(...)
 			end
 		end
 	end)
@@ -124,33 +124,40 @@ if SERVER then
 	---@param ent Colorable|Entity
 	---@param data ColorTreeData
 	local function setColor(ply, ent, data)
+		---@cast ent Colorable
 		if IsValid(ply) then
 			ent.colortree_owner = ply
 		end
 
 		-- Advanced Colour Tool Condition
-		local field = isAdvancedColorsInstalled(ent)
-		if field then
-			if not ent[field] then
-				---@diagnostic disable-next-line
-				ent:SetSubColor(0, nil)
+		local success, field = isAdvancedColorsInstalled(ent)
+		if success then
+			if not field then
+				-- Hack: Add subcolor, so it forces the field to be available
+				-- (some implementations delete the subcolor)
+				ent:SetSubColor(0, color_white, true)
+				_, field, _ = isAdvancedColorsInstalled(ent)
 			end
 
-			for id, color in pairs(data.colortree_colors) do
-				-- Only update the color when its different
-				if ent[field][id] ~= Color(color.r, color.g, color.b, color.a) then
-					---@diagnostic disable-next-line
-					ent:SetSubColor(id, Color(color.r, color.g, color.b, color.a))
-				end
-			end
+			-- for id, color in pairs(data.colortree_colors) do
+			-- 	-- Only update the color when its different
+			-- 	if ent[field][id] ~= Color(color.r, color.g, color.b, color.a) then
+			-- 		---@diagnostic disable-next-line
+			-- 		ent:SetSubColor(id, Color(color.r, color.g, color.b, color.a), true)
+			-- 	end
+			-- end
 
 			local mats = ent:GetMaterials()
 			for id = 0, #mats - 1 do
+				-- In case the field disappears for some reason, bring it back
+				-- and initialize it with color_white first, since this will
+				-- disappear any in the SetSubColor field.
+				ent[field] = ent[field] or {}
+				ent[field][id] = color_white
+
+				local color = data.colortree_colors[id]
 				-- Color exists but we're resetting?
-				if not data.colortree_colors[id] and ent[field][id] then
-					---@diagnostic disable-next-line
-					ent:SetSubColor(id, nil)
-				end
+				ent:SetSubColor(id, Either(color, Color(color.r, color.g, color.b, color.a), nil), true)
 			end
 		end
 
@@ -242,8 +249,9 @@ if SERVER then
 		local encodedTree = net.ReadData(treeLen)
 		local tree = decodeData(encodedTree)
 
-		if IsValid(tree.entity) then
-			setColor(ply, Entity(tree.entity), getColorTreeData(tree))
+		local ent = Entity(tree.entity)
+		if IsValid(ent) then
+			setColor(ply, ent, getColorTreeData(tree))
 			setColorWithTree(tree, ply)
 		end
 	end)
@@ -252,6 +260,7 @@ if SERVER then
 else
 	net.Receive("colortree_update", function(_, _)
 		local entity = net.ReadEntity()
+		---@cast entity Colorable
 		entity.LastColorChange = net.ReadUInt(CHANGE_BITS)
 	end)
 end

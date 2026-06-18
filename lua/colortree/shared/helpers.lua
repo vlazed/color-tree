@@ -103,6 +103,8 @@ function helpers.decodeData(data)
 	return util.JSONToTable(util.Decompress(data))
 end
 
+local AdvancedColorField, AdvancedColorFlushField
+
 local advancedColorFields = {
 	{ "_subcolors", "_subcolors_flush" },
 	{ "_adv_colours", "_adv_colours_flush" },
@@ -110,15 +112,22 @@ local advancedColorFields = {
 
 ---Try to be compatible with every advanced color / sub color / sub material color clone out there
 ---@param ent Colorable|Entity
----@return string?, string?
+---@return boolean, string?, string?
 function helpers.isAdvancedColorsInstalled(ent)
 	if isfunction(ent.SetSubColor) then
-		for _, field in ipairs(advancedColorFields) do
-			if ent[field[1]] then
-				return field[1], field[2]
+		if AdvancedColorField then
+			return true, AdvancedColorField, AdvancedColorFlushField
+		else
+			for _, field in ipairs(advancedColorFields) do
+				if ent[field[1]] then
+					AdvancedColorField, AdvancedColorFlushField = field[1], field[2]
+					return true, field[1], field[2]
+				end
 			end
+			return true
 		end
 	end
+	return false
 end
 
 return helpers

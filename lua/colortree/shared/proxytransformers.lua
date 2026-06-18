@@ -229,9 +229,11 @@ local proxyTransformers = {
 				net.Broadcast()
 			else
 				if SERVER then
-					net.Start("SendToRagdollClient")
-					net.WriteTable({ ent, DEFAULT_PLAYER_COLOR })
-					net.Send(ply)
+					if util.NetworkStringToID("SendToRagdollClient") ~= 0 then
+						net.Start("SendToRagdollClient")
+						net.WriteTable({ ent, DEFAULT_PLAYER_COLOR })
+						net.Send(ply)
+					end
 				end
 
 				Entity.GetPlayerColor = function()

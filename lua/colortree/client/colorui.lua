@@ -30,7 +30,7 @@ local function setColorClient(tree)
 		return
 	end
 
-	local field, flushField = isAdvancedColorsInstalled(entity)
+	local success, field, flushField = isAdvancedColorsInstalled(entity)
 
 	-- Advanced Colors
 	if next(tree.colors) then
@@ -179,7 +179,8 @@ local function refreshTree(tree)
 	---@cast entity Colorable
 
 	tree.color = IsValid(entity) and entity:GetColor() or color_white
-	tree.colors = table.Copy(entity._adv_colours) or {}
+	local success, field = isAdvancedColorsInstalled(entity)
+	tree.colors = table.Copy(entity[field]) or {}
 	getProxyData(tree, entity)
 
 	if not tree.children or #tree.children == 0 then
@@ -832,8 +833,9 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 	if IsValid(treePanel) and IsValid(treePanel.ancestor) then
 		treePanel:SetSelectedItem(treePanel.ancestor)
 		-- FIXME: Creates the submaterial frame twice. Could we circumvent this?
-		if isAdvancedColorsInstalled(colorable) then
-			setSubMaterialEntity(colorable, table.GetKeys(colorable._adv_colours or {}), panelChildren, panelState)
+		local success, field = isAdvancedColorsInstalled(colorable)
+		if success then
+			setSubMaterialEntity(colorable, table.GetKeys(colorable[field] or {}), panelChildren, panelState)
 		end
 		refreshTree(panelState.colorTree)
 	end
@@ -948,9 +950,10 @@ function ui.HookPanel(panelChildren, panelProps, panelState)
 				local entity = Entity(selectedNode.info.entity)
 				---@cast entity Colorable
 
+				local success, field, flushField = isAdvancedColorsInstalled(entity)
 				local selected, subcount = submaterialFrame:GetSelectedSubMaterials()
 				for _, id in ipairs(selected) do
-					colorPicker.Mixer:SetColor(entity._adv_colours[id] or color_white)
+					colorPicker.Mixer:SetColor(entity[field] and entity[field][id] or color_white)
 				end
 			end
 
